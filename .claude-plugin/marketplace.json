@@ -1,0 +1,69 @@
+{
+  "name": "onion-plugins",
+  "owner": {
+    "name": "Onion - Marcio Carvalho"
+  },
+  "metadata": {
+    "description": "Marketplace publico do Sistema Onion — o framework operacional como plugins instalaveis (/plugin marketplace add).",
+    "version": "0.1.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "onion-compliance",
+      "source": "./plugins/onion-compliance",
+      "description": "Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK) via agentes especialistas + build-compliance-docs. Auto-adapta ao compliance-context do consumidor (SDAAL).",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion-design",
+      "source": "./plugins/onion-design",
+      "description": "Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializacao via design-sink. Auto-adapta ao design-context do consumidor.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion-docs",
+      "source": "./plugins/onion-docs",
+      "description": "Vertical de documentacao do Onion: contexto de negocio/tecnico como spec-as-code, C4 (Context/Container/Component) + Mermaid, health/validacao de docs e engenharia reversa. Camada 1; business/technical-context = camada 2 do consumidor.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion-engineering",
+      "source": "./plugins/onion-engineering",
+      "description": "Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessoes persistentes) + especialistas de codigo (Node/React/Postgres/NX/Docker) e gates pre-PR. Camada 1; task-manager e forge do consumidor via SDAAL.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion-product",
+      "source": "./plugins/onion-product",
+      "description": "Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposicao de tasks agnostica, estimativas (story points), extracao de reunioes e apresentacoes. Camada 1; o task-manager do consumidor via SDAAL.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion-testing",
+      "source": "./plugins/onion-testing",
+      "description": "Vertical de testes/QA do Onion: geracao e execucao de testes (unit/integration/e2e) com deteccao de framework + validacao de workflow. Perspectivas White/Grey/Black-box e QA story points. Camada 1.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion-work-tools",
+      "source": "./plugins/onion-work-tools",
+      "description": "Ferramentas de trabalho cross-cutting do Onion (nao meta-fabrica): knowledge-graph (kg + radar soberano), diario de aprendizado, orquestracao, validacao de metaspec, freshness de KB/contexto, constelacao de estudos, recover, setup de integracoes, e co-evolucao upstream (co-evolve/co-relay). Distribuido a source/hub/standalone.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    },
+    {
+      "name": "onion",
+      "source": "./plugins/onion",
+      "description": "Nucleo operacional do Sistema Onion: o orquestrador mestre (skill onion) + skills core (language-standards, patterns, validation, orchestration) + runtime (warm-up/catch-up) + os motores (kg-radar: knowledge-graph SSOT como runtime, doutrina Elenxo/Dogfood) + guardas (hook exit-2 deterministico, aside-router) + abstracoes SDAAL (task-manager Jira/ClickUp/Asana/Linear, forge github). Instala a capacidade; o adotante gera os PROPRIOS grafos. Nao inclui a meta-fabrica.",
+      "version": "0.1.0",
+      "author": { "name": "Onion - Marcio Carvalho" }
+    }
+  ]
+}
