@@ -75,7 +75,8 @@ plugins/<nome>/
 │   └── provenance.json    # repository + ref + tree_sha do conteúdo (content-addressed)
 ├── commands/  agents/  skills/  hooks/   # o que o plugin expõe (namespace /<nome>:<comando>)
 ├── kb/  utils/  validation/              # doutrina e motores embarcados (quando aplicável)
-└── README.md                             # catálogo gerado do próprio plugin
+├── README.md                             # catálogo gerado do próprio plugin
+└── LICENSE                               # licença por plugin (exigência do diretório oficial)
 ```
 
 ## Contribuir e reportar
