@@ -6,7 +6,6 @@ description: |
   WCAG, materializa via design-sink) → material (reusa apresentação/Canva).
   Faseado e retomável. Fonte manual nesta versão; geração por IA (diverge/converge)
   chega numa fase futura. Delega a @design-system-specialist.
-model: sonnet
 allowed-tools: Read Write Edit Glob Grep Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/*) Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/design-sink/*)
 category: design
 tags: [design, tokens, identity, wcag, branding]
@@ -94,7 +93,7 @@ progresso na task via a abstração (`taskManager.addComment`) só se já houver
 
 Rodar **no próprio onion-evolve**: a identidade do Onion (`docs/design-context/` já tem foundations/
 semantic reais — #D97757/#8A2BE2) é o caso de teste. Fase 2 → gate verde → materializar o `theme.css`
-do Onion → aplicar num material (`docs/materials/landing-page.md`). Testar **modo de falha** (token
+do Onion → aplicar num material do projeto (ex.: a página viva em `site/src/pages/index.astro`). Testar **modo de falha** (token
 fora da escala, contraste insuficiente, alias órfão) — o gate deve barrar. Fix → re-rodar.
 
 ## Saída esperada

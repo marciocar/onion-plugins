@@ -78,11 +78,13 @@ Estrutura definida pela **SSOT** — não redefina aqui: [gitflow-patterns.md §
 ## YAML Headers Obrigatórios
 
 ### Comando (`.claude/commands/*.md`)
+> Comando NÃO declara `model:` (REGRA 71): roda no modelo da sessão, que segue a escada do eixo E6
+> (`session_models` + `session_floor` em `docs/onion/radar-baselines.yaml`). Tiering é dos AGENTES.
+
 ```yaml
 ---
 name: nome-comando
 description: Descrição curta (1-2 linhas)
-model: sonnet
 category: engineer|product|git|docs|meta|validate|quick|test|common|development
 tags: [tag1, tag2, tag3]
 version: "3.0.0"
@@ -95,7 +97,7 @@ updated: "YYYY-MM-DD"
 ---
 name: nome-agente
 description: Descrição da especialização
-model: sonnet|opus|haiku
+model: sonnet|opus|haiku|fable
 category: development|product|meta|compliance|review|testing|research|git|deployment
 tags: [tag1, tag2]
 expertise: [area1, area2, area3]

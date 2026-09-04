@@ -3,7 +3,6 @@ name: warm-up
 description: |
   Preparação geral do projeto - contexto completo do Sistema Onion.
   Revisa README, estrutura de documentação e meta especificações.
-model: sonnet
 allowed-tools: Read Bash(ls *) Bash(find docs*) Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh*)
 category: general
 tags: [warmup, context, preparation, overview, kg-first]
@@ -97,7 +96,7 @@ Estabelecer contexto completo do projeto incluindo:
 - `docs/evolution/README.md` - Modelo de co-evolução core↔derivados (se presente)
 
 ### Estrutura de Comandos
-- 104 comandos em 10 categorias
+- 109 comandos em 10 categorias
 - 51 agentes especializados em 9 categorias
 - Knowledge Bases estruturadas para IA
 

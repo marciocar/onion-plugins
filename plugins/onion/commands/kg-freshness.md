@@ -8,7 +8,6 @@ description: |
   O worker NUNCA escreve: propõe. O maestro sela. Irmão de /meta:kb-freshness e
   /meta:context-freshness, com uma diferença declarada — aqueles não têm onde escrever,
   o KG tem.
-model: opus
 category: meta
 tags: [kg, freshness, orchestration, validation, ssot]
 version: "1.0.0"
@@ -82,6 +81,12 @@ bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo> --freshness-tsv | so
 11 colunas: `id · node_type · plane · status · impact · confidence · atenção · verified_at ·
 verified_against · trace · verdict`.
 
+**`verdict: TESTIMONY` NUNCA entra na fila.** Nó com `evidence_class: testimony` (fonte é
+RELATO — intenção, fato de campo fora do repo) é não-re-verificável por construção: o worker
+concluiria `UNVERIFIABLE` a 74k tokens/nó. O radar o conta em linha própria (`ℹ N nó(s) TESTEMUNHO`),
+acusa `TESTIMONY-UNMARKED` quando o alvo começa por `relato-` sem o marcador, e `MISPLANED` quando
+testemunho se diz `plane: PROD`. (Q_TESTEMUNHO_NAO_MEDIVEL_0804, mecanizado 2026-09-02.)
+
 **Diga em voz alta no relatório:** nós com `verdict: OK` **permanecem na fila**. O carimbo diz
 se a SSOT está bem-formada; a **atenção** diz o que custa caro estar errado. Re-verifica-se
 pelo **custo do erro**, não pela ausência do carimbo — senão o fluxo nasce cego ao caso que o
@@ -118,13 +123,27 @@ Contrato do worker (cada cláusula paga por um erro real desta casa):
   um worker declarou `permission denied` em `/home/onion/onion-bridge/src/`, carimbou o nó por
   inferência indireta, e `sudo ls` lia o diretório — ele já usara `sudo` em quatro comandos da
   mesma medição. Falta de acesso é hipótese até você ter tentado ([[verify-access-before-specifying]]).
+  **Distinga o bloqueio de FS do bloqueio de HARNESS** (delta Claude Code 2.1.257, radar E3
+  2026-09-02): com `permissions.blockReadsOutsideWorkingDirectories` ativo, leitura fora dos
+  working dirs (`/home/marcio/<adotante>`, `/home/onion/onion-bridge`) é recusada pelo *harness* —
+  `sudo` **não vence**, porque a parede não é o filesystem. Nesse caso devolva `UNVERIFIABLE` com
+  `blocked_by: harness bloqueia leitura fora dos working dirs (<path>)` sem gastar elevação; o
+  maestro decide liberar o diretório (`--add-dir`) e re-rodar. Elevar contra a parede errada é o
+  mesmo erro de 2026-08-12 com o sinal invertido.
 - **Nó COMPOSTO: o veredito é do TODO, não da maioria.** Um nó que afirma N mecânicas
   independentes recebe UM `verdict`. Mediu 3 de 3 ⇒ o veredito que a medição disser. Mediu 2 de 3
   ⇒ **`UNVERIFIABLE`**, com `blocked_by` nomeando a parte não medida — nunca arredonde para cima.
   `CONFIRMED` é o desfecho que não pede justificativa, e por isso é para onde um worker escorrega.
 
 Tiering: `sonnet`/`medium` no worker (derivar o método pede raciocínio, não é mecânico);
-`opus`/`high` num juiz adversarial se > 30% vier DRIFTED/REFUTED.
+`opus`/`high` no **juiz adversarial — etapa FIXA** (decisão do maestro 2026-08-30, sobre
+calibração com padrão-ouro: FP 20% na acusação de subcontagem, SUB 0/7 — nunca erra na direção
+perigosa — e o único mecanismo que pegou um `ls` curado vendido como observed verbatim). Os
+vereditos do juiz PERMANECEM PROPOSTA que o maestro sela. Em runs grandes o juízo PODE ser
+escopado aos vereditos CONFIRMED (o desfecho barato de fabricar), com o corte DECLARADO no
+relatório. ⚠️ A regra anterior — juiz condicional a ">30% DRIFTED" — foi REMOVIDA por furo
+medido: o gatilho dependia do AUTOJULGAMENTO dos workers, exatamente o que o juiz existe para
+auditar (subcontagem de 44-48% medida em dois corpora).
 
 Schema de retorno:
 
@@ -154,7 +173,10 @@ const KgReverifySchema = {
     observed: { type: "string", minLength: 1 },  // o que voltou, verbatim, não interpretado
     verdict:  { enum: ["CONFIRMED", "DRIFTED", "REFUTED", "UNVERIFIABLE"] },
     divergence: { type: "string" },  // o que o nó afirma × o que se mediu ("" se CONFIRMED)
-    blocked_by: { type: "string" },  // SÓ em UNVERIFIABLE — ver as guardas abaixo
+    blocked_by: { type: "string" },  // SEMPRE PRESENTE: "" quando nada bloqueou; não-vazio SÓ em UNVERIFIABLE.
+                                     // ⚠️ NUNCA OMITA (medido 2026-08-29, 1º piloto): um worker leu o antigo
+                                     // "SÓ em UNVERIFIABLE", OMITIU a chave num CONFIRMED, e a barragem do schema
+                                     // o rejeitou 5/5 vezes — nó inteiro descartado por um comentário ambíguo.
     proposed_write: { type: "string" },  // YAML proposto; o worker NÃO escreve
     // COBERTURA — o antídoto do nó COMPOSTO. Quantas das afirmações independentes do nó
     // a medição alcançou. Declarada ANTES do veredito, de propósito: obriga a CONTAR as
@@ -163,33 +185,33 @@ const KgReverifySchema = {
     claims_measured: { type: "integer", minimum: 0 },
     coverage: { enum: ["TOTAL", "PARCIAL"] },
   },
-  allOf: [
-    // GUARDA 1 (2026-08-12): blocked_by não-vazio com veredito != UNVERIFIABLE é contradição —
-    // o worker diz "não consegui medir" e "está confirmado" na mesma respiração.
-    {
-      if:   { required: ["verdict"], properties: { verdict: { not: { const: "UNVERIFIABLE" } } } },
-      then: { required: ["blocked_by"], properties: { blocked_by: { const: "" } } },
+  // ⚠️ AS 3 GUARDAS VIVEM NUMA CADEIA if/then/else ANINHADA, COM RAIZ NA COBERTURA — e a
+  // raiz NÃO é escolha de estilo, é MEDIDA. Historial (2026-08-29, 1º run real do comando):
+  //   (a) a forma anterior — `allOf:` no topo — foi RECUSADA pela API 8/8 vezes, erro literal
+  //       `400 input_schema does not support oneOf, allOf, or anyOf at the top level`
+  //       (run wf_6aa135ec-1e2). As guardas NUNCA tinham rodado.
+  //   (b) esta cadeia foi provada EQUIVALENTE ao allOf por tabela-verdade: 15/15 casos idênticos
+  //       (jsonschema 4.26, inclui omissões de chave). E foi provada ACEITA pela API
+  //       (sonda wf_742e3a39-e7f).
+  //   (c) a raiz ALTERNATIVA — encadear a partir da GUARDA 1 (verdict) — DIVERGE do allOf em
+  //       2 casos medidos: `{CONFIRMED, PARCIAL, blocked_by:""}` passa nela e é rejeitado pelo
+  //       allOf. Esse payload é exatamente o modo-de-falha dominante (mediu parte, declarou o
+  //       todo). NÃO reordene a cadeia sem refazer a tabela-verdade.
+  // Semântica: coverage=PARCIAL ⇒ (GUARDA 2) verdict=UNVERIFIABLE + blocked_by não-vazio;
+  // senão, verdict=UNVERIFIABLE ⇒ (GUARDA 3) blocked_by não-vazio; senão (GUARDA 1) blocked_by="".
+  if:   { required: ["coverage"], properties: { coverage: { const: "PARCIAL" } } },
+  then: {
+    required: ["verdict", "blocked_by"],
+    properties: {
+      verdict:    { const: "UNVERIFIABLE" },
+      blocked_by: { type: "string", minLength: 1 },
     },
-    // GUARDA 2 — fecha a porta dos fundos da GUARDA 1. Sem ela o worker escapa APAGANDO o
-    // blocked_by e mantendo CONFIRMED: o rastro some e o defeito fica invisível.
-    // Cobertura PARCIAL só admite UNVERIFIABLE, e aí blocked_by volta a ser obrigatório.
-    {
-      if:   { required: ["coverage"], properties: { coverage: { const: "PARCIAL" } } },
-      then: {
-        required: ["verdict", "blocked_by"],
-        properties: {
-          verdict:    { const: "UNVERIFIABLE" },
-          blocked_by: { type: "string", minLength: 1 },
-        },
-      },
-    },
-    // GUARDA 3 — UNVERIFIABLE tem de dizer POR QUE. Sem ela, "não consegui medir" com
-    // blocked_by vazio valida: a GUARDA 1 não dispara (o `if` falha) e a 2 só cobre PARCIAL.
-    {
-      if:   { required: ["verdict"], properties: { verdict: { const: "UNVERIFIABLE" } } },
-      then: { required: ["blocked_by"], properties: { blocked_by: { type: "string", minLength: 1 } } },
-    },
-  ],
+  },
+  else: {
+    if:   { required: ["verdict"], properties: { verdict: { const: "UNVERIFIABLE" } } },
+    then: { required: ["blocked_by"], properties: { blocked_by: { type: "string", minLength: 1 } } },
+    else: { required: ["blocked_by"], properties: { blocked_by: { const: "" } } },
+  },
 };
 ```
 
