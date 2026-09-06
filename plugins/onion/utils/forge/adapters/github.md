@@ -2,7 +2,7 @@
 
 ## 🎯 Propósito
 
-Implementação completa do `IForge` para o GitHub. É uma instância concreta do padrão **SDAAL** (Specification-Driven AI Abstraction Layer) — consulte [`docs/knowledge-base/concepts/specification-driven-ai-abstraction-layer.md`](../../../../docs/knowledge-base/concepts/specification-driven-ai-abstraction-layer.md) para o contrato pai.
+Implementação completa do `IForge` para o GitHub. É uma instância concreta do padrão **SDAAL** (Specification-Driven AI Abstraction Layer) — consulte `docs/knowledge-base/concepts/specification-driven-ai-abstraction-layer.md` para o contrato pai.
 
 **Transporte**: a **`gh` CLI é o padrão e preferencial** (`FORGE_TRANSPORT=cli`, default) — embute auth (`gh auth`), paginação e tratamento de rate-limit. A **REST API** (`gh api` / `curl https://api.github.com`) é **fallback opcional** (`FORGE_TRANSPORT=api`), usada quando `gh` não está instalado/autenticado ou para operações não cobertas pela CLI.
 
@@ -572,7 +572,7 @@ function isGhInstalled(): boolean {
    ```
 2. **Autenticar**: `gh auth login` (ou exportar `GH_TOKEN`).
 3. **Testar**: `gh auth status` deve retornar autenticado.
-4. **Usar nos comandos Onion**: `/git:flow feature publish`, `/engineer/pr` (rotam PR/CI pelo adapter).
+4. **Usar nos comandos Onion**: `/onion-engineering:flow feature publish`, `/engineer/pr` (rotam PR/CI pelo adapter).
 
 ---
 
@@ -584,7 +584,7 @@ function isGhInstalled(): boolean {
 - [Types](../types.md)
 - [Factory](../factory.md)
 - [Detector](../detector.md)
-- [Padrão SDAAL](../../../../docs/knowledge-base/concepts/specification-driven-ai-abstraction-layer.md)
+- Padrão SDAAL
 
 ---
 

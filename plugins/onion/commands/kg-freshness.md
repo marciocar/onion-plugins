@@ -5,8 +5,8 @@ description: |
   Consome a fila determinística do `kg-radar.sh --freshness-tsv` (ordenada por atenção,
   NÃO pelo que o radar flagou) e roda um worker por nó, que MEDE e devolve
   CONFIRMED/DRIFTED/REFUTED/UNVERIFIABLE + o comando executado + o observado verbatim.
-  O worker NUNCA escreve: propõe. O maestro sela. Irmão de /meta:kb-freshness e
-  /meta:context-freshness, com uma diferença declarada — aqueles não têm onde escrever,
+  O worker NUNCA escreve: propõe. O maestro sela. Irmão de /onion:kb-freshness e
+  /onion:context-freshness, com uma diferença declarada — aqueles não têm onde escrever,
   o KG tem.
 category: meta
 tags: [kg, freshness, orchestration, validation, ssot]
@@ -15,15 +15,15 @@ updated: "2026-07-27"
 allowed-tools: Read Write Edit Grep Glob Bash
 argument-hint: "[<arquivo.kg.yaml>] [--top N] [--node <id>]  (vazio = grafo mais recente, top 16 por atenção)"
 related_commands:
-  - /meta:kg
-  - /meta:kb-freshness
-  - /meta:context-freshness
-  - /meta:diary
+  - /onion:kg
+  - /onion:kb-freshness
+  - /onion:context-freshness
+  - /onion:diary
 related_agents:
   - research-agent
 ---
 
-# /meta:kg-freshness — re-verificar a SSOT contra o vivo
+# /onion:kg-freshness — re-verificar a SSOT contra o vivo
 
 ## Objetivo
 
@@ -58,8 +58,8 @@ Não medi ⇒ não carimbo — `UNVERIFIABLE` é desfecho de primeira classe, n�
 - ✅ Depois de uma janela de mudanças no vivo (deploy, flip, hardening) que possa ter
   envelhecido claims `plane: PROD`
 - ✅ Quando o `--freshness` acusar STALE/UNANCHORED em nó de alta atenção
-- ❌ Não use para *criar* grafo (isso é `/meta:kg novo`) nem para pagar passivo de
-  proveniência (isso é `/meta:kg backfill`)
+- ❌ Não use para *criar* grafo (isso é `/onion:kg novo`) nem para pagar passivo de
+  proveniência (isso é `/onion:kg backfill`)
 
 ## Etapas de Execução
 
@@ -259,6 +259,14 @@ const KgReverifySchema = {
 | **CONFIRMED** | medido e ainda verdade | **Único** edit in-place permitido: `verified_at: <hoje>` (+ `verified_against:` se faltava). Nada mais. |
 | **DRIFTED** | a verdade mudou; o nó não errou | **Novo** nó com a verdade atual + `SUPERSEDES` → antigo; antigo vira `status: superseded`. Nunca reescreva o label do antigo. |
 | **REFUTED** | o nó estava errado | **Novo** nó `evidence` (PROD, `verified_at`, `verified_against`, `trace`) + `REFUTES` → alvo; alvo vira `status: refuted`. |
+
+> **Exceção nomeada, e só uma** (`onion-drive-doctrine.md` §4.1, 2026-09-06): quando o alvo **nunca
+> foi selado** — o `id:` não está em nenhum `*.kg.yaml` da base nem na história dela, porque nasceu no
+> PR em curso — o flip `→refuted`/`→superseded` **não** exige um selo separado: o par nó+refutação
+> chega ao maestro como uma proposta só. Isso não é juízo de quem escreve: roda-se
+> `bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-seal-exception.sh <grafo> <id>` (exit 0 = dispensa · 1 = PARA,
+> fail-closed). E o predicado **não** cobre a 4ª precondição: nomear o flip no checkpoint é humano.
+> Fora desse caso, a tabela acima vale inteira — o worker mede, o maestro escreve.
 | **UNVERIFIABLE** | não deu para medir | **NÃO TOCA `verified_at`.** Rebaixa `confidence` e/ou abre `question` + `DEPENDS_ON`. |
 
 **Antes de aplicar a linha CONFIRMED, leia a cobertura.** A tabela chaveia por `verdict`, mas o
@@ -317,8 +325,8 @@ Bloco `KG REVERIFY REPORT` no formato dos irmãos, mais:
 
 ## Notas
 
-- Composição: invocado por `/meta:evolve`, devolva o array `KgReverifySchema[]` cru —
-  espelha o contrato de `/meta:kb-freshness` (D4) e `/meta:context-freshness` (D9).
+- Composição: invocado por `meta:evolve`, devolva o array `KgReverifySchema[]` cru —
+  espelha o contrato de `/onion:kb-freshness` (D4) e `/onion:context-freshness` (D9).
 - `Bash` largo no `allowed-tools` é **por desenho**: medir o vivo é o ponto. O lint já registra
   que granularidade de `allowed-tools` ficou fora por gerar falso-positivo.
 - Diferença declarada vs os irmãos: `kb-freshness` e `context-freshness` **nunca mutam** — mas

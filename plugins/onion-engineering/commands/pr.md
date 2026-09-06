@@ -16,9 +16,9 @@ Você é um assistente especializado em **criação de Pull Requests**, fase 5 d
 
 ## 🤖 Integração via adapters (modernizada)
 
-- **Operações de host remoto** (abrir/atualizar PR, ler comentários de review, status de CI) passam **sempre** pelo adapter forge ([`.claude/utils/forge/`](../../utils/forge/interface.md)) — **nunca** `gh`/API direto (integrations.md §9). O adapter usa `gh` (default) ou REST (fallback) internamente.
+- **Operações de host remoto** (abrir/atualizar PR, ler comentários de review, status de CI) passam **sempre** pelo adapter forge (`.claude/utils/forge/`) — **nunca** `gh`/API direto (integrations.md §9). O adapter usa `gh` (default) ou REST (fallback) internamente.
 - **Git local** (criar branch, commit, push) é `git` direto, orientado pelo motor GitFlow ([gitflow-patterns.md](${CLAUDE_PLUGIN_ROOT}/kb/gitflow-patterns.md)).
-- **Sync de task** passa pelo adapter Task Manager ([`utils/task-manager/factory.md`](../../utils/task-manager/factory.md)) — roteamento e formatação por provider são do adapter.
+- **Sync de task** passa pelo adapter Task Manager (`utils/task-manager/factory.md`) — roteamento e formatação por provider são do adapter.
 
 ---
 
@@ -45,7 +45,7 @@ Siga estes passos para criar o PR:
    A base do PR é a **branch de integração** do repo — resolvida de forma determinística e portável
    (SSOT versionado `.onion-version` → `git config gitflow.branch.develop` → default detectado), **não**
    hardcoded. Isto faz um repo adotado com branch de integração própria (ex. `<projeto>-evolve`, carimbada
-   pelo `/meta:adopt --integration-branch`) ser respeitada em qualquer máquina:
+   pelo `meta:adopt --integration-branch`) ser respeitada em qualquer máquina:
    ```bash
    BASE="$(bash ${CLAUDE_PLUGIN_ROOT}/validation/resolve-integration-branch.sh)"   # ver helper p/ a cadeia
    ```
@@ -97,7 +97,7 @@ O PR está pronto para revisão final e merge manual.
 
 ## 📚 Referências
 
-- Forge (PR, review, CI): [utils/forge/interface.md](../../utils/forge/interface.md)
-- Sync de task: [utils/task-manager/factory.md](../../utils/task-manager/factory.md)
+- Forge (PR, review, CI): utils/forge/interface.md
+- Sync de task: utils/task-manager/factory.md
 - Motor GitFlow (branch, sync): [gitflow-patterns.md](${CLAUDE_PLUGIN_ROOT}/kb/gitflow-patterns.md)
 - Mentor: `@gitflow-specialist`

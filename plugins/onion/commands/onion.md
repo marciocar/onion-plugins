@@ -67,7 +67,7 @@ git branch --show-current
 git status --short
 ```
 
-> Para reportar status de um worklog, o agente lê **só o `STATE.md`** (índice Tier-0 ~1KB, ponteiro `NEXT`) — não a pasta inteira. Worklog ≠ transcript nativo (`claude --resume`). Ver [worklog-protocol.md](../../docs/knowledge-base/concepts/worklog-protocol.md).
+> Para reportar status de um worklog, o agente lê **só o `STATE.md`** (índice Tier-0 ~1KB, ponteiro `NEXT`) — não a pasta inteira. Worklog ≠ transcript nativo (`claude --resume`). Ver worklog-protocol.md.
 
 ### Passo 3: Invocar @onion
 
@@ -91,7 +91,7 @@ Delegar para o agente com contexto coletado.
 ∟ /product/task - Criar tasks
 ∟ /engineer/start - Iniciar feature
 ∟ /engineer/work - Continuar trabalho
-∟ /git:flow feature start - Criar branch
+∟ /onion-engineering:flow feature start - Criar branch
 
 💡 Use: /onion "sua pergunta"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -127,7 +127,7 @@ Para: "criar task no ClickUp"
 📋 Sequência:
 1. /product/task [nome]
 2. /engineer/start [feature-slug]
-3. /git:flow feature start
+3. /onion-engineering:flow feature start
 4. /engineer/work
 5. /engineer/pre-pr
 6. /engineer/pr

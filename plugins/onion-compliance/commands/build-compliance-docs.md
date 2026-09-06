@@ -21,8 +21,8 @@ version: "4.0.0"
 updated: "2026-06-16"
 
 related_commands:
-  - /docs:build-tech-docs
-  - /docs:build-business-docs
+  - /onion-product:build-tech-docs
+  - /onion-product:build-business-docs
 
 related_agents:
   - security-information-master
@@ -92,7 +92,7 @@ propagar a contradição para a documentação gerada.
 > **incentivo impresso no próprio texto** (reteste pago, etapa seguinte precificada) é evidência, não
 > suspeita. O que o fornecedor **concede contra o próprio interesse** é a parte de maior confiança do
 > documento. **Interesse qualifica a leitura, não a anula** — achado distinto e de lógica de negócio não
-> se relativiza. Doutrina: [evidence-source-interest.md](../../../docs/knowledge-base/concepts/evidence-source-interest.md).
+> se relativiza. Doutrina: evidence-source-interest.md.
 
 > **Modo não-interativo (infer-from-evidence).** Sem usuário disponível ou evidência completa,
 > não bloqueie: infira a partir do repo e dos artefatos existentes, **marque cada inferência**
@@ -103,7 +103,7 @@ propagar a contradição para a documentação gerada.
 
 Os 4 especialistas são **independentes entre si** — sem dependência de ordem. Despachá-los em **paralelo** via orquestração (pattern `fan-out-and-synthesize`).
 
-Use `/meta:orchestrate` ou a skill `onion-orchestration` para despachar em paralelo:
+Use `/onion:orchestrate` ou a skill `onion-orchestration` para despachar em paralelo:
 
 ```
 PARALELO (todos ao mesmo tempo, sem esperar o anterior):
@@ -175,8 +175,8 @@ docs/compliance-context/
 
 - **Template-base**: `${CLAUDE_PLUGIN_ROOT}/templates/compliance-context-template.md`
 - **Pasta-alvo**: `docs/compliance-context/`
-- **Comandos complementares**: `/docs:build-tech-docs` · `/docs:build-business-docs`
-- **Ciclo de vida (SSOT viva)**: [domain-context-lifecycle.md](../../../docs/knowledge-base/concepts/domain-context-lifecycle.md)
+- **Comandos complementares**: `/onion-product:build-tech-docs` · `/onion-product:build-business-docs`
+- **Ciclo de vida (SSOT viva)**: domain-context-lifecycle.md
 - Orquestrador: @security-information-master · ISO 27001: @iso-27001-specialist · SOC2: @soc2-specialist
 
 ## ⚠️ Notas

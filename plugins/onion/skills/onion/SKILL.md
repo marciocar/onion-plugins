@@ -49,7 +49,7 @@ Branch atual:
 
 **Sequência de hotfix:**
 ```
-/engineer/hotfix → /engineer/work → /engineer/pr → /git:flow hotfix finish
+/engineer/hotfix → /engineer/work → /engineer/pr → /onion-engineering:flow hotfix finish
 ```
 
 ---
@@ -57,21 +57,21 @@ Branch atual:
 ### Produto e Discovery
 | Intenção | Comando / Agente |
 |----------|-----------------|
-| Coletar requisitos / ideias | `/product:collect` |
-| Refinar requisitos | `/product:refine` |
-| Especificação de produto | `/product:spec` |
-| Estimar story points | `/product:estimate` |
+| Coletar requisitos / ideias | `/onion-product:collect` |
+| Refinar requisitos | `/onion-product:refine` |
+| Especificação de produto | `/onion-product:spec` |
+| Estimar story points | `/onion-product:estimate` |
 | Warm-up de produto | `/product/warm-up` |
-| Transcrever áudio / reunião | `/product:whisper` |
-| Extrair ata de reunião | `/product:extract-meeting` |
-| Consolidar múltiplas reuniões | `/product:consolidate-meetings` |
-| Converter documento em tasks | `/product:convert-to-tasks` |
-| Analisar dor do cliente | `/product:analyze-pain-price` |
-| Branding e posicionamento | `/product:branding` |
+| Transcrever áudio / reunião | `/onion-product:whisper` |
+| Extrair ata de reunião | `/onion-product:extract-meeting` |
+| Consolidar múltiplas reuniões | `/onion-product:consolidate-meetings` |
+| Converter documento em tasks | `/onion-product:convert-to-tasks` |
+| Analisar dor do cliente | `/onion-product:analyze-pain-price` |
+| Branding e posicionamento | `/onion-product:branding` |
 
 **Sequência de discovery:**
 ```
-/product:collect → /product:refine → /product:spec → /product/task
+/onion-product:collect → /onion-product:refine → /onion-product:spec → /product/task
 ```
 
 ---
@@ -79,17 +79,17 @@ Branch atual:
 ### Documentação
 | Intenção | Comando / Agente |
 |----------|-----------------|
-| Documentação técnica | `/docs:build-tech-docs` |
-| Documentação de negócio | `/docs:build-business-docs` |
-| Atualizar índice de docs | `/docs:build-index` |
-| Engenharia reversa de projeto | `/docs:reverse-consolidate` |
-| Validar documentação | `/docs:validate-docs` |
+| Documentação técnica | `/onion-product:build-tech-docs` |
+| Documentação de negócio | `/onion-product:build-business-docs` |
+| Atualizar índice de docs | `/onion-product:build-index` |
+| Engenharia reversa de projeto | `/onion-product:reverse-consolidate` |
+| Validar documentação | `/onion-product:validate-docs` |
 | Diagrama de arquitetura C4 | `@c4-architecture-specialist` |
 | Diagrama Mermaid | `@mermaid-specialist` |
 
 **Sequência de documentação:**
 ```
-/docs:build-tech-docs → /docs:build-business-docs → /docs:build-index
+/onion-product:build-tech-docs → /onion-product:build-business-docs → /onion-product:build-index
 ```
 
 ---
@@ -97,28 +97,28 @@ Branch atual:
 ### Criar Componentes do Onion
 | Intenção | Comando |
 |----------|---------|
-| Novo agente especializado | `/meta:create-agent` |
-| Novo skill | `/meta:create-skill` |
-| Novo comando | `/meta:create-command` |
-| Nova knowledge base | `/meta:create-knowledge-base` |
-| Configurar integração (task manager, APIs) | `/meta:setup-integration` |
-| Análise de problema complexo | `/meta:analyze-complex-problem` |
-| Orquestrar subagentes (fan-out paralelo) | `/meta:orchestrate` (skill `onion-orchestration`) |
+| Novo agente especializado | `meta:create-agent` |
+| Novo skill | `meta:create-skill` |
+| Novo comando | `meta:create-command` |
+| Nova knowledge base | `meta:create-knowledge-base` |
+| Configurar integração (task manager, APIs) | `/onion:setup-integration` |
+| Análise de problema complexo | `/onion:analyze-complex-problem` |
+| Orquestrar subagentes (fan-out paralelo) | `/onion:orchestrate` (skill `onion-orchestration`) |
 
 **Régua de decisão — em qual CAIXA vai um procedimento recorrente?** (a tabela acima dá o comando *se você já sabe a caixa*; isto decide a caixa — antes de criar)
 1. **P0 — Já existe?** `grep`/`find` no namespace. Se algo cobre, ou é extensão natural (flag, parâmetro, seção a um SKILL.md) → **EXTEND/FIX, não crie** (anti-proliferação de átomos).
 2. **P1 — Determinístico ou juízo?** Output idêntico p/ o mesmo input, sem contexto de sessão (regex, contagem, diff, SSOT) → **script** (`${CLAUDE_PLUGIN_ROOT}/validation/` p/ guards do CI; `.claude/utils/` p/ helpers reusados). Requer contexto/intenção/trade-off → P2.
-3. **P2 — Semântica ou invocação explícita?** Domínio/expertise recorrente → **skill** (SKILL.md <500 linhas + `references/`/`scripts/` sob demanda — progressive disclosure). Ponto de entrada consciente `/nome` com juízo de quando → **comando** fino. Conhecimento de fundo lido pontual (doutrina/ADR) → **KB**. Especialista delegável → **agente** (`.claude/agents/<categoria>/`). Façade multi-provider → **abstração SDAAL** — mas só passando no **Teste do Eixo**: ≥2 implementações **reais** (não prometidas) · escolha do `.env`, não do autor · consumidor **precisa** ser cego. Falhou uma → **script** (P1). 1 provider real + N prometidos = script; o 2º provider real é o gatilho. Critério: [abstraction-doctrine](../../../docs/knowledge-base/concepts/onion-abstraction-doctrine.md).
+3. **P2 — Semântica ou invocação explícita?** Domínio/expertise recorrente → **skill** (SKILL.md <500 linhas + `references/`/`scripts/` sob demanda — progressive disclosure). Ponto de entrada consciente `/nome` com juízo de quando → **comando** fino. Conhecimento de fundo lido pontual (doutrina/ADR) → **KB**. Especialista delegável → **agente** (`.claude/agents/<categoria>/`). Façade multi-provider → **abstração SDAAL** — mas só passando no **Teste do Eixo**: ≥2 implementações **reais** (não prometidas) · escolha do `.env`, não do autor · consumidor **precisa** ser cego. Falhou uma → **script** (P1). 1 provider real + N prometidos = script; o 2º provider real é o gatilho. Critério: abstraction-doctrine.
 4. **P3 — Irreversível?** Muta estado externo sem undo (push --force, deploy, merge de release, bulk task-manager) → **+ gate humano** (camada ORTOGONAL — soma-se a qualquer caixa de P2).
 
-**Combinação canônica** (procedimento completo ≈ combinação, não átomo): script (controle) + comando (juízo) + KB/ADR (doutrina) + gate (se irreversível). Template no core: vertical `co-*` (`co-*.sh` + `co-*.md` + ADR + human-gate). Detalhe: [discovery S1](../../../docs/analysis/onion-toolbox-s1-scoping-2026-06.md).
+**Combinação canônica** (procedimento completo ≈ combinação, não átomo): script (controle) + comando (juízo) + KB/ADR (doutrina) + gate (se irreversível). Template no core: vertical `co-*` (`co-*.sh` + `co-*.md` + ADR + human-gate). Detalhe: discovery S1.
 
 ---
 
 ### Orquestração (paralelo)
 | Intenção | Comando / Skill |
 |----------|-----------------|
-| Auditoria/migração/review amplos em paralelo | `/meta:orchestrate` |
+| Auditoria/migração/review amplos em paralelo | `/onion:orchestrate` |
 | Decompor → delegar → sintetizar/verificar | skill `onion-orchestration` (autora `Workflow`) |
 | Doutrina e padrões canônicos | KB `agent-orchestration` |
 
@@ -127,9 +127,9 @@ Branch atual:
 ### Auto-Evolução do Framework
 | Intenção | Comando / KB |
 |----------|--------------|
-| "Auditar o Onion", "como melhoro o framework?", "está desatualizado/pesado?" | `/meta:evolve` (orquestração, read-only → backlog priorizado) |
+| "Auditar o Onion", "como melhoro o framework?", "está desatualizado/pesado?" | `meta:evolve` (orquestração, read-only → backlog priorizado) |
 | Qual padrão de refatoração aplicar (consolidar/adapter/KB/skill/fan-out) | KB `onion-modernization-doctrine` |
-| Frescor de KBs · conformidade meta-spec | `/meta:kb-freshness` · `/meta:metaspec-validate` (compostos pelo `/meta:evolve`) |
+| Frescor de KBs · conformidade meta-spec | `/onion:kb-freshness` · `/onion:metaspec-validate` (compostos pelo `meta:evolve`) |
 
 ---
 
@@ -138,25 +138,25 @@ Branch atual:
 |----------|-----------------|
 | Code review | `@code-reviewer` |
 | Review de branch completa | `@branch-code-reviewer` |
-| Testes unitários | `/test:unit` |
-| Testes de integração | `/test:integration` |
-| Testes E2E | `/test:e2e` |
+| Testes unitários | `/onion-engineering:unit` |
+| Testes de integração | `/onion-engineering:integration` |
+| Testes E2E | `/onion-engineering:e2e` |
 | Planejamento de testes | `@test-planner` |
 | Validar conformidade arquitetural | `@metaspec-gate-keeper` |
-| Validar workflow do Onion | `/validate:workflow` |
+| Validar workflow do Onion | `/onion-engineering:workflow` |
 
 ---
 
 ### Git e Versionamento
 | Intenção | Comando |
 |----------|---------|
-| Iniciar feature branch | `/git:flow feature start` |
-| Finalizar feature | `/git:flow feature finish` |
-| Publicar branch remota | `/git:flow feature publish` |
-| Sincronizar com GitFlow | `/git:sync` |
-| Iniciar release | `/git:flow release start` |
-| Finalizar release | `/git:flow release finish` |
-| Commit rápido | `/git:fast-commit` |
+| Iniciar feature branch | `/onion-engineering:flow feature start` |
+| Finalizar feature | `/onion-engineering:flow feature finish` |
+| Publicar branch remota | `/onion-engineering:flow feature publish` |
+| Sincronizar com GitFlow | `/onion-engineering:sync` |
+| Iniciar release | `/onion-engineering:flow release start` |
+| Finalizar release | `/onion-engineering:flow release finish` |
+| Commit rápido | `/onion-engineering:fast-commit` |
 
 ---
 
@@ -177,7 +177,7 @@ Branch atual:
 | Warm-up de engenharia | `/engineer/warm-up` |
 | Warm-up de produto | `/product/warm-up` |
 | Visão geral do sistema | `/onion` |
-| Listar todas as ferramentas | `/meta:all-tools` |
+| Listar todas as ferramentas | `/onion:all-tools` |
 
 ---
 
@@ -200,13 +200,13 @@ Branch atual:
 ## Gotchas Críticos
 
 **Task Manager Provider obrigatório**
-Antes de qualquer operação com tasks: ler `TASK_MANAGER_PROVIDER` no `.env`. Providers válidos: `clickup`, `jira`, `asana`, `linear`, `none`. Se ausente ou inválido: avisar o usuário e sugerir `/meta:setup-integration`. Nunca inventar valores nem assumir outro provider.
+Antes de qualquer operação com tasks: ler `TASK_MANAGER_PROVIDER` no `.env`. Providers válidos: `clickup`, `jira`, `asana`, `linear`, `none`. Se ausente ou inválido: avisar o usuário e sugerir `/onion:setup-integration`. Nunca inventar valores nem assumir outro provider.
 
 **Feature slug: sempre kebab-case**
 Correto: `user-authentication`. Errado: `user_authentication`, `UserAuth`, `userAuth`. O slug é usado tanto no nome da branch Git quanto na pasta de sessão `.claude/sessions/<feature-slug>/`.
 
 **Worklog de feature (sessão em arquivo) ≠ transcript nativo**
-"Worklog" = a pasta `.claude/sessions/<feature-slug>/` (estado durável em arquivo); "transcript" = a conversa nativa do Claude Code (`claude --resume`). São complementares. Estrutura na SSOT: [gitflow-patterns.md §Contrato de Sessão](../../../docs/knowledge-base/frameworks/gitflow-patterns.md#contrato-de-sessão-de-desenvolvimento). Para reportar status ou retomar, leia **só o `STATE.md`** (índice Tier-0 ~1KB), não a pasta inteira — protocolo em [worklog-protocol.md](../../../docs/knowledge-base/concepts/worklog-protocol.md). `/engineer/start` cria; `/engineer/work` consome. Verificar se o worklog existe antes de recomendar `/engineer/work`.
+"Worklog" = a pasta `.claude/sessions/<feature-slug>/` (estado durável em arquivo); "transcript" = a conversa nativa do Claude Code (`claude --resume`). São complementares. Estrutura na SSOT: gitflow-patterns.md §Contrato de Sessão. Para reportar status ou retomar, leia **só o `STATE.md`** (índice Tier-0 ~1KB), não a pasta inteira — protocolo em worklog-protocol.md. `/engineer/start` cria; `/engineer/work` consome. Verificar se o worklog existe antes de recomendar `/engineer/work`.
 
 **Formatação ClickUp vs Jira**
 - ClickUp: descriptions → Markdown nativo; comments → Unicode visual (`━━━`, `▶`, `◆`)

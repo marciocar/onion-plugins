@@ -24,14 +24,11 @@ claude plugin marketplace add marciocar/onion-plugins && claude plugin install o
 
 | Plugin | Categoria | Versão | Comandos | Agentes | Skills | Hooks | O que traz |
 |---|---|---|---|---|---|---|---|
-| [`onion`](plugins/onion/README.md) | core | `0.1.164` | 4 | 1 | 5 | 2 | Nucleo operacional do Sistema Onion: o orquestrador mestre (skill onion) + skills core (language-standards, p… |
+| [`onion`](plugins/onion/README.md) | core | `0.1.236` | 22 | 2 | 8 | 2 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
 | [`onion-compliance`](plugins/onion-compliance/README.md) | vertical | `0.1.19` | 1 | 5 | 1 | 0 | Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK… |
 | [`onion-design`](plugins/onion-design/README.md) | vertical | `0.1.22` | 3 | 3 | 0 | 0 | Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializaca… |
-| [`onion-docs`](plugins/onion-docs/README.md) | vertical | `0.1.23` | 10 | 5 | 0 | 0 | Vertical de documentacao do Onion: contexto de negocio/tecnico como spec-as-code, C4 (Context/Container/Compo… |
-| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.86` | 17 | 16 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessoes persist… |
-| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.43` | 21 | 12 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposicao de tasks agnos… |
-| [`onion-testing`](plugins/onion-testing/README.md) | vertical | `0.1.18` | 4 | 3 | 0 | 0 | Vertical de testes/QA do Onion: geracao e execucao de testes (unit/integration/e2e) com deteccao de framework… |
-| [`onion-work-tools`](plugins/onion-work-tools/README.md) | tools | `0.1.146` | 16 | 1 | 4 | 0 | Ferramentas de trabalho cross-cutting do Onion (nao meta-fabrica): knowledge-graph (kg + radar soberano), dia… |
+| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.92` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
+| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.53` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
 
 Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, motores KG, guardas, runtime); cada vertical acrescenta comandos e agentes de um domínio; `onion-work-tools` traz os utilitários de trabalho (censo, backlog, freshness). Cada plugin tem o seu README com o catálogo completo.
 
@@ -39,6 +36,10 @@ Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, mot
 /plugin install onion-engineering@onion-plugins
 /plugin install onion-product@onion-plugins
 ```
+
+## Migração (2026-09)
+
+Três plugins foram absorvidos para o canal premiar bundles verticais coesos (pesquisa R1, 2026-09-04): `onion-work-tools` → `onion` · `onion-testing` → `onion-engineering` · `onion-docs` → `onion-product`. Quem tinha os antigos: `/plugin uninstall <antigo>@onion-plugins` e `/plugin install <novo>@onion-plugins`. Os nomes antigos não voltam (nomes de plugin são imutáveis no diretório).
 
 ## Manter em dia
 
@@ -62,7 +63,7 @@ Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, mot
 ## O que este canal é — e o que não é
 
 - **É** instalação de capacidade: read-only, versionada, atualizável, removível. Os seus grafos de conhecimento são **seus** (o plugin traz o motor; você constrói o SSOT).
-- **Não é** adoção/vendorização: para ter o Onion dentro do repositório (customizável, com co-evolução), o canal é `/meta:adopt` no repositório-fonte.
+- **Não é** adoção/vendorização: para ter o Onion dentro do repositório (customizável, com co-evolução), o canal é `meta:adopt` (comando do core) no repositório-fonte.
 - **Não vem** a meta-fábrica (gerar novos comandos/verticais/adotantes) nem os grafos privados do core — por desenho (moat).
 
 ## Estrutura de cada plugin

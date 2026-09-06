@@ -23,19 +23,19 @@ Ponto de entrada **único** para o ciclo de vida GitFlow. Substitui os antigos
 `git/{feature,release,hotfix}/{start,publish,finish}` (7 shims + 3 subpastas) por
 um dispatcher arg-driven. É um **orquestrador fino**: a lógica canônica mora no
 motor GitFlow ([gitflow-patterns.md](${CLAUDE_PLUGIN_ROOT}/kb/gitflow-patterns.md)),
-operações de host remoto no [forge adapter](../../utils/forge/interface.md) e sync
-de task no [task-manager adapter](../../utils/task-manager/factory.md).
+operações de host remoto no forge adapter e sync
+de task no task-manager adapter.
 
 ## 🚀 Como Usar
 
 ```bash
-/git:flow feature start "user-auth"     # cria feature/user-auth + sessão
-/git:flow feature publish               # push + review (forge)
-/git:flow feature finish                # merge → develop + cleanup
-/git:flow release start "minor"         # release/<versão> (semver auto-bump)
-/git:flow release finish                # merge main+develop, tag, Release no host
-/git:flow hotfix start "fix-pay"        # hotfix a partir de main + task urgente
-/git:flow hotfix finish                 # dual-merge + tag + Release + CI
+/onion-engineering:flow feature start "user-auth"     # cria feature/user-auth + sessão
+/onion-engineering:flow feature publish               # push + review (forge)
+/onion-engineering:flow feature finish                # merge → develop + cleanup
+/onion-engineering:flow release start "minor"         # release/<versão> (semver auto-bump)
+/onion-engineering:flow release finish                # merge main+develop, tag, Release no host
+/onion-engineering:flow hotfix start "fix-pay"        # hotfix a partir de main + task urgente
+/onion-engineering:flow hotfix finish                 # dual-merge + tag + Release + CI
 ```
 
 `<type>` = `feature` | `release` | `hotfix` · `<action>` = `start` | `publish` (só feature) | `finish`.
@@ -44,8 +44,8 @@ Sem args válidos → mostre esta ajuda e pare (não adivinhe).
 ## 🧭 Princípios (válidos para toda combinação)
 
 1. **Git local** (branch/checkout/merge/tag/**push**) = `git` direto, orientado pela KB. **Não** passa por adapter.
-2. **Host remoto** (PR/review/CI/Release) = sempre via [forge adapter](../../utils/forge/interface.md) — nunca `gh`/API em prosa (integrations.md §9).
-3. **Task (opcional)** — se `TASK_MANAGER_PROVIDER` != `none`, via [task-manager adapter](../../utils/task-manager/factory.md); roteamento/formatação por provider são do adapter — **não reimplementar aqui**.
+2. **Host remoto** (PR/review/CI/Release) = sempre via forge adapter — nunca `gh`/API em prosa (integrations.md §9).
+3. **Task (opcional)** — se `TASK_MANAGER_PROVIDER` != `none`, via task-manager adapter; roteamento/formatação por provider são do adapter — **não reimplementar aqui**.
 4. **Working directory limpo** antes de qualquer merge; em conflito → [§Template 6](${CLAUDE_PLUGIN_ROOT}/kb/gitflow-patterns.md#template-6-resolução-de-conflitos).
 
 ## ⚡ Matriz de Roteamento
@@ -64,23 +64,23 @@ Cada combinação `(type, action)` resolve para um Template do motor + ações d
 
 ## 📤 Saída
 
-Reporte: combinação executada, branch resultante, ações de adapter realizadas e o próximo passo do ciclo (ex.: após `feature finish` → `/git:sync develop`).
+Reporte: combinação executada, branch resultante, ações de adapter realizadas e o próximo passo do ciclo (ex.: após `feature finish` → `/onion-engineering:sync develop`).
 
 ## 🔁 Migração (caminhos antigos → dispatcher)
 
 | Antigo (removido) | Agora |
 |---|---|
-| `/git:feature:start X` | `/git:flow feature start X` |
-| `/git:feature:publish` | `/git:flow feature publish` |
-| `/git:feature:finish` | `/git:flow feature finish` |
-| `/git:release:start V` | `/git:flow release start V` |
-| `/git:release:finish` | `/git:flow release finish` |
-| `/git:hotfix:start X` | `/git:flow hotfix start X` |
-| `/git:hotfix:finish` | `/git:flow hotfix finish` |
+| `git:feature:start X` | `/onion-engineering:flow feature start X` |
+| `git:feature:publish` | `/onion-engineering:flow feature publish` |
+| `git:feature:finish` | `/onion-engineering:flow feature finish` |
+| `git:release:start V` | `/onion-engineering:flow release start V` |
+| `git:release:finish` | `/onion-engineering:flow release finish` |
+| `git:hotfix:start X` | `/onion-engineering:flow hotfix start X` |
+| `git:hotfix:finish` | `/onion-engineering:flow hotfix finish` |
 
 ## 📚 Referências
 
 - Motor GitFlow (Templates, semver, sessão, conflitos): [gitflow-patterns.md](${CLAUDE_PLUGIN_ROOT}/kb/gitflow-patterns.md)
-- Forge (PR/CI/Release): [utils/forge/interface.md](../../utils/forge/interface.md)
-- Sync de task: [utils/task-manager/factory.md](../../utils/task-manager/factory.md)
-- Setup: `/git:init` · Pós-merge: `/git:sync` · Mentor: `@gitflow-specialist`
+- Forge (PR/CI/Release): utils/forge/interface.md
+- Sync de task: utils/task-manager/factory.md
+- Setup: `/onion-engineering:init` · Pós-merge: `/onion-engineering:sync` · Mentor: `@gitflow-specialist`

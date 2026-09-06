@@ -22,7 +22,7 @@ A coordenação roda em JavaScript e custa **0 tokens de modelo**. O teto é de
 (default 200) soma subagentes de **toda a sessão** (conversa principal + fan-out), não por run isolado — e o
 mesmo vale para `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` (default 200), o teto que já mordeu a casa. Suba o
 env var ou rode `/clear` para resetar a contagem — nunca desista da orquestração por teto esgotado. Detalhe e
-fontes: [agent-orchestration.md](../../../docs/knowledge-base/concepts/agent-orchestration.md) → "Primitivas
+fontes: agent-orchestration.md → "Primitivas
 Nativas" (fonte única).
 
 ## Instruções (passo a passo)
@@ -72,7 +72,7 @@ Nativas" (fonte única).
    colete `DiffSchema`, **detecte colisão de paths em JS**; partição limpa → aplique
    tudo numa **branch de consolidação**; colisão → **gate humano** (ou judge-panel
    p/ abordagens concorrentes). A branch consolidada entra no fluxo normal
-   (`/git:flow feature finish` / `/engineer:pr` via forge) — nunca N branches
+   (`/onion-engineering:flow feature finish` / `/onion-engineering:pr` via forge) — nunca N branches
    soltas. (Playbook: KB de orquestração §7.)
 5. **Verificação adversarial / judge-panel quando alto risco.** Mudanças amplas,
    irreversíveis ou de compliance ganham uma etapa de verificação por um agente
@@ -90,7 +90,7 @@ Nativas" (fonte única).
    grafo virou predecessor da avaliação em vez de destino dela). **Persista** a síntese
    no repo (`docs/**/research/*.md` ou local durável) — **nunca**
    a deixe só no `/tmp/.../tasks/*.output` **efêmero** do harness — **e materialize/atualize** o
-   `.kg.yaml` via `/meta:kg` + `bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh` (exit 0). Fecha o ciclo
+   `.kg.yaml` via `/onion:kg` + `bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh` (exit 0). Fecha o ciclo
    `read(KG)→verify→act→write(KG)` ([knowledge-graph-sdaal.md](${CLAUDE_PLUGIN_ROOT}/kb/knowledge-graph-sdaal.md)
    §SSOT-as-runtime) — é o **bookend simétrico** do read(KG) (passo 0 de `warm-up`/`catch-up`/`engineer:work`).
    **Mecanismo, não conselho:** skills do harness como `deep-research` despejam em `/tmp` efêmero — a
@@ -153,7 +153,7 @@ const results = (await parallel(
 const paths = results.flatMap(r => r.files.map(f => f.path));
 const collided = paths.filter((p, i) => paths.indexOf(p) !== i);
 if (collided.length) return gateHumano(collided, results);  // partição falhou
-// sem colisão → consolida numa branch → /git:flow feature finish | /engineer:pr
+// sem colisão → consolida numa branch → /onion-engineering:flow feature finish | /onion-engineering:pr
 ```
 
 ### `write(KG)` — template canônico de fase (classe FINDINGS)
@@ -170,7 +170,7 @@ const synthesisPath = `docs/analysis/${slug}-${today}.md`;
 await write(synthesisPath, synthesisToMarkdown(synthesis));       // persiste no repo — nunca só /tmp efêmero
 
 const kgPath = `docs/onion/graph/${slug}-${today}.kg.yaml`;
-await agent(                                                      // ou: /meta:kg <slug> (mesmo efeito)
+await agent(                                                      // ou: /onion:kg <slug> (mesmo efeito)
   `Modele a síntese consolidada como Knowledge Graph SDAAL (.kg.yaml): claims/evidência/decisões
    tipados, arestas SUPPORTS/REFUTES/SUPERSEDES. Escreva em ${kgPath}.\n\n${JSON.stringify(synthesis)}`,
   { schema: KgWriteSchema, model: "sonnet", effort: "medium" }
@@ -257,7 +257,7 @@ força), e a doutrina desta casa é que `fix-must-become-mechanism` vale **quand
   **dispensa worktree** (worktree custa ~200-500ms + disco/agente). Use
   `isolation:'worktree'` **só** quando há sobreposição real ou branches
   independentes a fundir. Consolide numa **única branch** → fluxo normal
-  (`/git:flow` / `/engineer:pr`). Playbook completo: KB de orquestração §7.
+  (`/onion-engineering:flow` / `/onion-engineering:pr`). Playbook completo: KB de orquestração §7.
 - **Orquestração é OPT-IN, nunca default.** Fan-out é decisão explícita. Trabalho
   serial e os workflows faseados canônicos (`engineer/*`, `product/*`)
   permanecem sequenciais — a orquestração paraleliza *dentro* de uma fase, não funde
@@ -265,7 +265,7 @@ força), e a doutrina desta casa é que `fix-must-become-mechanism` vale **quand
 - **Nunca orqueste dentro de um subagente.** A orquestração mora no **nível
   principal** (skill/comando). Subagentes não disparam a orquestração — fan-out aninhado
   dentro de worker é mais caro e turvo. Por
-  [architecture.md §4.2](../../../docs/meta-specs/architecture.md), `agents/* →
+  architecture.md §4.2, `agents/* →
   commands/*` é proibido; logo **não existe** agente "worker-orchestrator".
 - **Coordenação JS custa 0 tokens.** Filtros, agregação, ranqueamento e
   roteamento entre etapas rodam em JavaScript — não gaste chamadas de modelo no
@@ -282,15 +282,15 @@ força), e a doutrina desta casa é que `fix-must-become-mechanism` vale **quand
 - **Run-id + trace.** Gere um identificador por run (custo 0 tokens) e inclua no relatório junto à referência do **Agent View**, para reprodutibilidade e inspeção.
 - **Falhar-alto em fase vazia (não no-op silencioso).** Se uma lista de trabalho **derivada** de uma fase fica vazia com entradas não-vazias (esperava N itens para julgar/processar, obteve 0), isso é **erro de orquestração**, não sucesso. Assert `derivada.length` antes de prosseguir e `log()` o descompasso — senão a fase no-opa e o run reporta "ok" tendo verificado nada. (Incidente real: filtro de juízes comparou caminho **absoluto** do worker com **relativo** → 0 juízes; o run reportou sucesso.)
 - **Correlação por chave estável, nunca por path.** Ao casar resultado-de-worker com configuração (qual julgar, qual estágio), use **label/índice** estável — não string-match de caminho, que quebra na fronteira absoluto-vs-relativo.
-- **Claim de localização de dado exige read-path verificado.** Em auditoria data-driven, worker que afirma *onde um dado vive* (tabela/arquivo/cache/env) cita o **read-path no código** (`arquivo:linha` de quem efetivamente lê na operação auditada) — senão o item nasce **hipótese**, nunca nó confirmado. No fan-in, **divergência de fonte** entre workers (ou worker×banco) é **achado** (provável split-brain), não ruído. (Caso real: tabela de nome óbvio quase produziu veredito falso — o motor lia outra; padrão [verify-read-path-first](../../../docs/knowledge-base/agentic-patterns/ai-strategies/verify-read-path-first.md), sinal de campo de um adotante.)
+- **Claim de localização de dado exige read-path verificado.** Em auditoria data-driven, worker que afirma *onde um dado vive* (tabela/arquivo/cache/env) cita o **read-path no código** (`arquivo:linha` de quem efetivamente lê na operação auditada) — senão o item nasce **hipótese**, nunca nó confirmado. No fan-in, **divergência de fonte** entre workers (ou worker×banco) é **achado** (provável split-brain), não ruído. (Caso real: tabela de nome óbvio quase produziu veredito falso — o motor lia outra; padrão verify-read-path-first, sinal de campo de um adotante.)
 - **Retomar a fase quebrada, não racionalizar.** Quando uma fase falha/no-opa, **corrija o script e retome** via `resumeFromRunId` (workers concluídos vêm do cache; só a fase corrigida roda) — não substitua a verificação perdida por um check **a jusante** (CI/lint) e a declare "equivalente". Um check determinístico cobre a dimensão *sintática*; verificadores semânticos cobrem *funcionalidade/qualidade* — **não são intercambiáveis**. Nomeie a dimensão não-verificada; quando possível, converta-a num **guard determinístico permanente**.
 - **Síntese que não persistiu = síntese perdida (não a deixe efêmera).** Orquestração que produz conhecimento fecha em `write(KG)` (passo 7): o output do harness vive no `/tmp` e **drifta** — o SSOT nunca o viu. Antes do relatório, **persista no repo + materialize `.kg.yaml` (radar exit 0)** e **nomeie o path**. "Esqueci de salvar" é exatamente o modo-de-falha que o KG-first foi criado pra matar (sinal de campo 2026-07-18: `deep-research` do harness não persiste no KG-SSOT).
-- **Claim sobre atual/emergente/popular exige verificação externa.** Worker de pesquisa que afirma algo **current/emerging/popular** — **versão · device · projeto/player · framework · tendência** — **verifica externo** (`WebSearch`/`WebFetch`) **antes** de o claim virar nó confirmado; senão nasce **hipótese**, nunca fato (mesma forma do read-path acima, com o **mundo externo** no lugar do read-path). `WebFetch` é **budget separado** do `WebSearch` (transporte esgotado ≠ desistir); ambos indisponíveis → o worker **marca "não verificado"**, não chuta. É o `verify(vivo)` do ciclo aplicado ao mundo externo (doutrina [verify-external-for-current](../../../docs/knowledge-base/concepts/verify-external-for-current.md)).
+- **Claim sobre atual/emergente/popular exige verificação externa.** Worker de pesquisa que afirma algo **current/emerging/popular** — **versão · device · projeto/player · framework · tendência** — **verifica externo** (`WebSearch`/`WebFetch`) **antes** de o claim virar nó confirmado; senão nasce **hipótese**, nunca fato (mesma forma do read-path acima, com o **mundo externo** no lugar do read-path). `WebFetch` é **budget separado** do `WebSearch` (transporte esgotado ≠ desistir); ambos indisponíveis → o worker **marca "não verificado"**, não chuta. É o `verify(vivo)` do ciclo aplicado ao mundo externo (doutrina verify-external-for-current).
 
 ## Referências
 
 - KB de doutrina e mapeamento de padrões: `docs/knowledge-base/concepts/agent-orchestration.md`
-- Comando faceta: `/meta:orchestrate`
+- Comando faceta: `/onion:orchestrate`
 - Meta-spec de comandos (§10 Orquestração): `docs/meta-specs/commands.md`
 - Meta-spec de arquitetura (§4.2 dependências): `docs/meta-specs/architecture.md`
 - Skill relacionada: `onion-patterns` (estrutura e nomenclatura)
