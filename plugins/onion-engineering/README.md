@@ -2,7 +2,7 @@
 
 Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persistentes), gates pré-PR, especialistas de código (Node, React, Postgres, NX, Docker, segurança) e testes (unit/integration/e2e, estratégia de teste, QA story points).
 
-**Versão** `0.1.92` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.118` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -96,10 +96,10 @@ Invocação: `/onion-engineering:<comando>` (namespace do plugin).
 
 | Campo | Valor |
 |---|---|
-| Fonte | `marciocar/onion-evolve` |
-| tree_sha (hash do conteúdo das fontes) | `2ed627947f96` |
+| Origem | `marciocar/onion-evolve` (repositório privado) |
+| tree_sha (hash do conteúdo das fontes) | `cc4d2798649f` |
 
-Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
+A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
 Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT em `.claude/` do source. Não edite à mão: a próxima montagem sobrescreve.
 
@@ -113,4 +113,4 @@ Comandos deste plugin citam: `onion`. Não é dependência — sem eles, essas m
 
 ## Licença
 
-MIT (texto integral em `LICENSE`, na raiz do plugin) — © Onion · Marcio Carvalho. Site: https://onionevolve.com · Fonte: https://github.com/marciocar/onion-evolve
+MIT (texto integral em `LICENSE`, na raiz do plugin) — © Onion · Marcio Carvalho. Site: https://onionevolve.com · Issues e suporte: https://github.com/marciocar/onion-plugins

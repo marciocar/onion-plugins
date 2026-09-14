@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kg-radar.sh — radar determinístico do Knowledge Graph SDAAL (motor soberano do core).
 #
-# Uso: bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo.kg.yaml> [--radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples]
+# Uso: bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo.kg.yaml> [<modo>...]  (modos COMPÕEM: `--integrity --schema` roda os dois e reprova se qualquer um reprovar)\n       modos: --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples
 #      (sem flag = radar + state + reconcile + integrity + domain + provenance + freshness + schema)
 #
 # Doutrina: ${CLAUDE_PLUGIN_ROOT}/kb/knowledge-graph-sdaal.md
@@ -90,7 +90,51 @@ STATUS_FACTOR="$(cat "${_LIB}")"
 
 FILE="${1:-}"
 MODE="${2:---all}"
-[ -n "$FILE" ] && [ -f "$FILE" ] || { echo "uso: kg-radar.sh <arquivo.kg.yaml> [--radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples]" >&2; exit 2; }
+
+# ⚠️ MODOS COMPOSTOS — o `$3` caía no chão, EM SILÊNCIO. Sinal de campo do adotante
+# de um adotante (2026-08-31), confirmado aqui em 2026-09-07: `kg-radar.sh <g> --integrity
+# --schema` rodava SÓ a integridade e devolvia exit 0 como se tivesse rodado as duas. Medido: 97
+# sítios no repo usam essa forma, e dois deles são gates de PASSO ZERO (`kg-drive-project.sh` e
+# `kg-realign-project.sh`, que PARAM se o radar reprovar) — mais o predicado de selo criado hoje.
+# Ou seja: a casa inteira vinha declarando uma prova mais forte do que a que rodava.
+#
+# Por que re-invocar em vez de reescrever o awk: o veredito de cada modo já mora dentro do awk e
+# cada modo tem seu próprio `exit`. Um laço externo preserva TODOS os 97 sítios sem tocar em 700
+# linhas de parser, e o rc composto é o que a chamada sempre quis dizer: reprova se QUALQUER modo
+# reprovar. Chamada de um modo só não muda em nada — nem de caminho, nem de custo.
+#
+# ⚠️ E o alívio, medido antes de curar: rodado sozinho, o `--schema` passa em 91 de 91 grafos
+# versionados. Nenhum defeito foi publicado por causa disto — o que houve foi afirmação mais forte
+# que a medição, que é a classe que esta casa persegue.
+if [ "$#" -gt 2 ]; then
+  _rc=0
+  for _m in "${@:2}"; do
+    # ⚠️ ALLOWLIST: modo desconhecido era fail-open SILENCIOSO — `--schemaa` sumia e somava rc=0.
+    #    A classe curada aqui estava a um typo de distância de voltar pela porta ao lado.
+    case "${_m}" in
+      --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples|--all) : ;;
+      *) printf 'kg-radar: modo desconhecido: %s\n' "${_m}" >&2; exit 2 ;;
+    esac
+  done
+  for _m in "${@:2}"; do
+    bash "${BASH_SOURCE[0]}" "${FILE}" "${_m}"; _one=$?
+    # ⚠️ 2 é ERRO DE USO/ARQUIVO e NÃO pode virar 1 (grafo reprovado) — contrato escrito no
+    #    cabeçalho deste arquivo. Antes, arquivo ausente + forma composta devolvia 1.
+    [ "${_one}" -eq 2 ] && exit 2
+    [ "${_one}" -eq 0 ] || _rc=1
+  done
+  exit "${_rc}"
+fi
+# ⚠️ LITERAL EM ASPAS SIMPLES + printf. A 1ª versão desta mensagem trazia `--integrity --schema`
+#    entre CRASES dentro de aspas DUPLAS: o shell tentava EXECUTAR, emitia "command not found",
+#    comia o exemplo e ainda imprimia `\n` literal. É o mesmo defeito que este autor curou, no
+#    mesmo dia, em seed-adoption-graph.sh — a partir de um sinal de campo sobre exatamente isso.
+[ -n "$FILE" ] && [ -f "$FILE" ] || {
+  printf '%s\n' 'uso: kg-radar.sh <arquivo.kg.yaml> [<modo>...]' \
+    '      os modos COMPÕEM: "--integrity --schema" roda os dois e reprova se qualquer um reprovar' \
+    '      modos: --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness' \
+    '             --freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples' >&2
+  exit 2; }
 
 awk -v mode="$MODE" -v radarSchema="$RADAR_SCHEMA" -v arq="$FILE" "${STATUS_FACTOR}"'
 # ── DENYLIST, NÃO ALLOWLIST — a lição de 2026-08-07 ─────────────────────────────────────────
@@ -158,13 +202,15 @@ function trabalhoPendente(s) { return (s != "confirmed" && s != "done" && s != "
 
 function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); gsub(/^["'\'']|["'\'']$/, "", s); return s }
 
-BEGIN { section = ""; nid = ""; ne = 0 }
+BEGIN { section = ""; nid = ""; ne = 0; metaClosed = 0; metaFieldIndent = -1 }
 
 # comentários e vazio fora de valores
 /^[[:space:]]*#/ { next }
 
-/^nodes:/ { section = "nodes"; next }
-/^edges:/ { section = "edges"; nid = ""; next }
+# `metaClosed` marca aqui, e NAO numa regra propria: as trocas de secao tem `next`, entao uma
+# regra posterior para `/^nodes:/` nunca executaria — foi o defeito da 1a tentativa desta cura.
+/^nodes:/ { section = "nodes"; metaClosed = 1; next }
+/^edges:/ { section = "edges"; nid = ""; metaClosed = 1; next }
 /^meta:/  { section = "meta"; next }
 
 # Legibilidade da gramática (guarda anti-fail-open — sinal de campo 2026-07-17): conta as
@@ -252,6 +298,44 @@ section == "edges" && /^[[:space:]]*on:/ { v = $0; sub(/^[[:space:]]*on:/, "", v
 # meta: campos de governança de frescor/schema (proposta #1/#2 — ADR kg-freshness-gate)
 section == "meta" && /^[[:space:]]*schema_version:/ { v = $0; sub(/^[[:space:]]*schema_version:/, "", v); metaSchema = trim(v); next }
 section == "meta" && /^[[:space:]]*baseline:/       { v = $0; sub(/^[[:space:]]*baseline:/, "", v);       metaBaseline = trim(v); next }
+# `target:` é o que faz de um arquivo uma PROPOSTA: ele declara o grafo vivo onde o conteúdo vai
+# aterrissar. Ver a GUARDA DE MODO PROPOSTA na INTEGRIDADE para o que isso muda — e o que não muda.
+# ── O GATILHO DA PROPOSTA, e ele é ESTREITO DE PROPÓSITO ──────────────────────────────────────
+# A 1ª versão casava `^[[:space:]]*target:` — qualquer indentação, em qualquer lugar de `meta:`.
+# A passada adversarial de 2026-09-11 abriu TRÊS portas de ativação acidental num grafo vivo, e as
+# três reprovam pelo mesmo motivo: um relaxamento de gate nunca pode ser ligado por acidente.
+#   (a) `target:` ANINHADO em sub-mapa (`meta: → migracao: → target:`) ligava o modo;
+#   (b) `target:` dentro de um bloco literal (`nota: |`) ligava o modo — e esta é a classe que este
+#       arquivo DECLARA ter curado em l.246-258. A ancoragem cobre contra SUBSTRING, não contra
+#       prosa indentada que começa com o token. Nos campos antigos (schema_version/baseline) a
+#       falha cai para o lado barulhento; neste ela cai para o lado FAIL-OPEN;
+#   (c) `meta:` REABERTO depois de `nodes:` desligava as duas cobranças com duas linhas no fim de
+#       qualquer grafo.
+# As três curas, na ordem em que fecham:
+#   1. `metaClosed` — só o PRIMEIRO bloco meta conta, e ele acaba quando `nodes:`/`edges:` abre;
+#   2. `metaFieldIndent` — `target:` só vale na MESMA indentação dos outros campos diretos de meta,
+#      travada pelo primeiro campo visto. Isto fecha (a) E (b) de uma vez: sub-mapa é mais fundo, e
+#      conteúdo de bloco literal também — por construção da gramática YAML.
+# A indentação do primeiro campo direto de `meta:` trava a régua. Só ela — e isto é resultado de
+# MEDIÇÃO, não de economia: a 1ª versão desta cura rastreava blocos literais (`nota: |`) em
+# paralelo, e a varredura de mutação mostrou que desligar esse rastreio NÃO muda veredito nenhum.
+# É redundante por construção: conteúdo de bloco YAML é sempre MAIS indentado que a chave que o
+# abre, logo nunca casa a indentação de um campo direto. Guarda que não pode rejeitar nada é
+# exatamente o que esta onda está removendo do resto da casa — não vou deixá-la aqui.
+section == "meta" && metaFieldIndent < 0 && /^[[:space:]]+[A-Za-z_][A-Za-z0-9_]*:/ {
+  metaFieldIndent = match($0, /[^[:space:]]/) - 1
+}
+
+# COMENTÁRIO INLINE SAI. `target:` é um CAMINHO que a selagem consome, e o exemplo do próprio
+# README traz ` # ← o gatilho` na mesma linha: sem esta poda o valor vira caminho+comentário. O
+# padrão é o do YAML — só ESPAÇO seguido de `#` abre comentário, então `a#b` continua inteiro.
+section == "meta" && metaClosed == 0 && /^[[:space:]]+target:/ {
+  if (match($0, /[^[:space:]]/) - 1 == metaFieldIndent) {
+    v = $0; sub(/^[[:space:]]*target:/, "", v); sub(/[[:space:]]+#.*$/, "", v); metaTarget = trim(v)
+    metaTargetSeen = 1
+  }
+  next
+}
 
 END {
   VN = "entity claim decision question evidence artifact state event rule invariant policy"
@@ -736,6 +820,37 @@ END {
 
   if (mode == "--all" || mode == "--integrity") {
     print "══ INTEGRIDADE ══"
+
+    # ── MODO PROPOSTA ─────────────────────────────────────────────────────────────────────────
+    # DOIS CONTRATOS DO FRAMEWORK SE CONTRADIZIAM, e o preço era pago pelo primeiro que usasse a
+    # fila. `docs/evolution/kg-inbox/README.md` manda um agente externo PROPOR um nó; a INTEGRIDADE
+    # exige grau >= 1 com a aresta no MESMO arquivo. A proposta documentada — um nó, nenhuma aresta
+    # — portanto NUNCA passava: reproduzido em rc=1 com `nó órfão (grau 0)`. Não é bug de nenhum dos
+    # dois lados: é uma regra de GRAFO FECHADO aplicada a um FRAGMENTO que, por definição, só fecha
+    # quando aterrissa no destino.
+    #
+    # O que o modo relaxa, e SÓ isto: grau 0 e referência para fora do arquivo. Tudo o que se pode
+    # decidir olhando só o fragmento continua valendo — id duplicado, chave repetida, node_type,
+    # plane, layer, status, impact, confidence, edge_type. A alternativa que foi descartada era
+    # excluir a fila do `ci.yml`: aquela deixaria a proposta SEM QUALQUER gate, e um fragmento mal
+    # formado só apareceria na hora de selar, que é o pior momento possível.
+    #
+    # ELE NUNCA É SILENCIOSO. Um gate que afrouxa sem dizer é a mesma classe que esta casa persegue:
+    # quem lê `✅` precisa saber que leu o ✅ de um fragmento, não o de um grafo.
+    isProposal = (metaTarget != "" || arq ~ /\.proposal\.kg\.yaml$/)
+    # `target:` PRESENTE MAS VAZIO: o arquivo se declara proposta e o modo não engata — fail-closed,
+    # que é a direção certa, mas MUDO. Quem escreveu a chave acredita estar em modo proposta e
+    # recebe exatamente o erro que o modo existe para não dar. Dizer o porquê custa uma linha.
+    if (!isProposal && metaTargetSeen) {
+      print "  ⚠ `target:` está presente em meta: mas VAZIO — o MODO PROPOSTA NÃO foi ativado."
+      print "    Declare o grafo de destino, ou renomeie o arquivo para *.proposal.kg.yaml."
+    }
+    if (isProposal) {
+      propWhy = (metaTarget != "" ? "meta.target: " metaTarget : "sufixo .proposal.kg.yaml")
+      print "  ◆ MODO PROPOSTA (" propWhy ") — este arquivo é FRAGMENTO, não grafo fechado."
+      print "    Relaxados: grau 0 e referência para fora do arquivo. Todo o resto continua reprovando."
+    }
+
     for (id in dup) { print "  ✗ id duplicado: " id; problems++ }
     # Chave repetida DENTRO de um nó: o parser sobrescreve calado e o arquivo passa a afirmar
     # duas verdades. Reprova — quem carimba tem de SUBSTITUIR, não INSERIR (medido 2026-08-12).
@@ -745,14 +860,24 @@ END {
       problems++
     }
     for (i = 1; i <= ne; i++) {
-      if (!(efrom[i] in nodeSeen)) { print "  ✗ aresta " i ": from aponta nó inexistente: " efrom[i]; problems++ }
-      if (!(eto[i]   in nodeSeen)) { print "  ✗ aresta " i ": to aponta nó inexistente: " eto[i]; problems++ }
+      # Referência para fora do arquivo: num grafo fechado é erro; num fragmento é o CASO NORMAL —
+      # a proposta liga o nó novo a um nó que já vive no destino. Contada, nunca engolida.
+      if (!(efrom[i] in nodeSeen)) {
+        if (isProposal) { dangling++ } else { print "  ✗ aresta " i ": from aponta nó inexistente: " efrom[i]; problems++ }
+      }
+      if (!(eto[i]   in nodeSeen)) {
+        if (isProposal) { dangling++ } else { print "  ✗ aresta " i ": to aponta nó inexistente: " eto[i]; problems++ }
+      }
       if (index(VE, etype[i]) == 0 || etype[i] == "") { print "  ✗ aresta " i ": edge_type inválido: [" etype[i] "]"; problems++ }
-      if (eon[i] != "" && !(eon[i] in nodeSeen)) { print "  ✗ aresta " i ": on aponta evento inexistente: " eon[i]; problems++ }
+      if (eon[i] != "" && !(eon[i] in nodeSeen)) {
+        if (isProposal) { dangling++ } else { print "  ✗ aresta " i ": on aponta evento inexistente: " eon[i]; problems++ }
+      }
     }
     for (i = 1; i <= nn; i++) {
       id = order[i]
-      if (deg[id] == 0) { print "  ✗ nó órfão (grau 0): " id; problems++ }
+      if (deg[id] == 0) {
+        if (isProposal) { orphan++ } else { print "  ✗ nó órfão (grau 0): " id; problems++ }
+      }
       if (index(VN, ntype[id]) == 0 || ntype[id] == "") { print "  ✗ " id ": node_type inválido: [" ntype[id] "]"; problems++ }
       if (index(VP, plane[id]) == 0 || plane[id] == "") { print "  ✗ " id ": plane inválido: [" plane[id] "]"; problems++ }
       if (index(VL, layer[id]) == 0) { print "  ✗ " id ": layer inválido: [" layer[id] "]"; problems++ }
@@ -763,7 +888,14 @@ END {
         print "  ✗ CONTRADIÇÃO: " id " recebe REFUTES mas segue status=" nstatus[id] " (reconciliar: refuted ou superseded)"; problems++
       }
     }
-    if (problems == 0) print "  ✅ sem contradições estruturais (" nn " nós, " ne " arestas)"
+    # O QUE FOI RELAXADO SAI NUMERADO. Sem esta linha o modo proposta seria exatamente o defeito
+    # que ele cura, uma camada acima: um ✅ que não conta o que deixou de cobrar.
+    if (isProposal && (orphan > 0 || dangling > 0)) {
+      print "  ℹ relaxado pelo MODO PROPOSTA: " orphan+0 " nó(s) de grau 0 · " dangling+0 " referência(s) para fora do arquivo"
+      print "    — são erro ao SELAR no destino, onde o grafo volta a ser fechado; aqui não são."
+    }
+    if (problems == 0 && isProposal) print "  ✅ fragmento bem formado (" nn " nós, " ne " arestas) — o gate do grafo fechado é a SELAGEM"
+    else if (problems == 0) print "  ✅ sem contradições estruturais (" nn " nós, " ne " arestas)"
     print ""
   }
 

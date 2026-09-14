@@ -2,7 +2,7 @@
 
 Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnóstica ao provider, story points, extração de reuniões, apresentações e documentação de contexto (business/technical context, C4 + Mermaid, engenharia reversa, docs-health).
 
-**Versão** `0.1.53` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.78` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -104,10 +104,10 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 
 | Campo | Valor |
 |---|---|
-| Fonte | `marciocar/onion-evolve` |
-| tree_sha (hash do conteúdo das fontes) | `7773f2f918c6` |
+| Origem | `marciocar/onion-evolve` (repositório privado) |
+| tree_sha (hash do conteúdo das fontes) | `97112c846ec9` |
 
-Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
+A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
 Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT em `.claude/` do source. Não edite à mão: a próxima montagem sobrescreve.
 
@@ -121,4 +121,4 @@ Comandos deste plugin citam: `onion`, `onion-compliance`, `onion-engineering`. N
 
 ## Licença
 
-MIT (texto integral em `LICENSE`, na raiz do plugin) — © Onion · Marcio Carvalho. Site: https://onionevolve.com · Fonte: https://github.com/marciocar/onion-evolve
+MIT (texto integral em `LICENSE`, na raiz do plugin) — © Onion · Marcio Carvalho. Site: https://onionevolve.com · Issues e suporte: https://github.com/marciocar/onion-plugins

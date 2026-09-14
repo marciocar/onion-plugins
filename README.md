@@ -2,7 +2,7 @@
 
 O **Onion** é um framework operacional para desenvolvimento com IA: workflows faseados e retomáveis (produto → engenharia → compliance), um grafo de conhecimento como fonte de verdade em runtime (KG-SSOT), guardas determinísticas por hook e abstrações de provider (SDAAL). Este marketplace entrega essa **capacidade** como plugins instaláveis e atualizáveis pelo gerenciador de plugins — sem vendorizar nada no seu repositório.
 
-Fonte: https://github.com/marciocar/onion-evolve · Site: https://onionevolve.com · Licença: MIT
+Site: https://onionevolve.com · Issues e suporte: https://github.com/marciocar/onion-plugins · Licença: MIT
 
 ## Quick start
 
@@ -24,11 +24,11 @@ claude plugin marketplace add marciocar/onion-plugins && claude plugin install o
 
 | Plugin | Categoria | Versão | Comandos | Agentes | Skills | Hooks | O que traz |
 |---|---|---|---|---|---|---|---|
-| [`onion`](plugins/onion/README.md) | core | `0.1.236` | 22 | 2 | 8 | 2 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
-| [`onion-compliance`](plugins/onion-compliance/README.md) | vertical | `0.1.19` | 1 | 5 | 1 | 0 | Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK… |
-| [`onion-design`](plugins/onion-design/README.md) | vertical | `0.1.22` | 3 | 3 | 0 | 0 | Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializaca… |
-| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.92` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
-| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.53` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
+| [`onion`](plugins/onion/README.md) | core | `0.1.256` | 22 | 2 | 8 | 2 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
+| [`onion-compliance`](plugins/onion-compliance/README.md) | vertical | `0.1.40` | 1 | 5 | 1 | 0 | Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK… |
+| [`onion-design`](plugins/onion-design/README.md) | vertical | `0.1.45` | 3 | 3 | 0 | 0 | Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializaca… |
+| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.118` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
+| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.78` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
 
 Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, motores KG, guardas, runtime); cada vertical acrescenta comandos e agentes de um domínio; `onion-work-tools` traz os utilitários de trabalho (censo, backlog, freshness). Cada plugin tem o seu README com o catálogo completo.
 
@@ -82,7 +82,9 @@ plugins/<nome>/
 
 ## Contribuir e reportar
 
-Issues e sinais em https://github.com/marciocar/onion-evolve (o source). Os plugins aqui são **artefatos gerados** do source por `materialize-marketplace-repo.sh` — PRs de conteúdo vão para o source, não para este repositório.
+**Issues, dúvidas e relatos de bug: https://github.com/marciocar/onion-plugins/issues.** É o canal de suporte deste projeto.
+
+Os plugins aqui são **artefatos gerados** por `materialize-marketplace-repo.sh` a partir de um repositório-fonte **privado**, então este repositório não recebe PRs de conteúdo: uma correção proposta numa issue é aplicada no source e chega aqui na materialização seguinte. Abrir a issue é o caminho — e é o caminho inteiro.
 
 ## Licença
 
