@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kg-radar.sh — radar determinístico do Knowledge Graph SDAAL (motor soberano do core).
 #
-# Uso: bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo.kg.yaml> [<modo>...]  (modos COMPÕEM: `--integrity --schema` roda os dois e reprova se qualquer um reprovar)\n       modos: --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples
+# Uso: bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo.kg.yaml> [<modo>...]  (modos COMPÕEM: `--integrity --schema` roda os dois e reprova se qualquer um reprovar)\n       modos: --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples|--validade
 #      (sem flag = radar + state + reconcile + integrity + domain + provenance + freshness + schema)
 #
 # Doutrina: ${CLAUDE_PLUGIN_ROOT}/kb/knowledge-graph-sdaal.md
@@ -112,7 +112,7 @@ if [ "$#" -gt 2 ]; then
     # ⚠️ ALLOWLIST: modo desconhecido era fail-open SILENCIOSO — `--schemaa` sumia e somava rc=0.
     #    A classe curada aqui estava a um typo de distância de voltar pela porta ao lado.
     case "${_m}" in
-      --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples|--all) : ;;
+      --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness|--freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples|--validade|--all) : ;;
       *) printf 'kg-radar: modo desconhecido: %s\n' "${_m}" >&2; exit 2 ;;
     esac
   done
@@ -133,10 +133,16 @@ fi
   printf '%s\n' 'uso: kg-radar.sh <arquivo.kg.yaml> [<modo>...]' \
     '      os modos COMPÕEM: "--integrity --schema" roda os dois e reprova se qualquer um reprovar' \
     '      modos: --radar|--state|--reconcile|--integrity|--domain|--provenance|--freshness' \
-    '             --freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples' >&2
+    '             --freshness-tsv|--open-tsv|--weights-tsv|--status-tsv|--schema|--triples|--validade' >&2
   exit 2; }
 
-awk -v mode="$MODE" -v radarSchema="$RADAR_SCHEMA" -v arq="$FILE" "${STATUS_FACTOR}"'
+# `hoje` entra como VARIÁVEL e não por `systime()` para tornar o veredito REPRODUTÍVEL — dá para
+# fixá-la num teste em vez de esperar o relógio. (A 1ª redação justificava também com "o `mawk` não
+# tem systime/strftime". Medido na passada adversarial: este radar NÃO RODA sob mawk — morre em
+# `asorti never defined`, rc=2, saída zero. A razão da portabilidade era verdadeira sobre o awk e
+# FALSA sobre este script; ficou só a que o artefato sustenta.)
+awk -v mode="$MODE" -v radarSchema="$RADAR_SCHEMA" -v arq="$FILE" -v hoje="$(date -u +%Y-%m-%d)" "${STATUS_FACTOR}"'
+/^---[ \t]*$/ { docSeps++ }
 # ── DENYLIST, NÃO ALLOWLIST — a lição de 2026-08-07 ─────────────────────────────────────────
 # Quando `drifted`/`unverifiable` entraram (2026-08-06), os predicados escritos como ALLOWLIST
 # (`== "confirmed"`, `confirmed || open`) os deixaram de fora EM SILÊNCIO, enquanto os escritos
@@ -157,7 +163,7 @@ awk -v mode="$MODE" -v radarSchema="$RADAR_SCHEMA" -v arq="$FILE" "${STATUS_FACT
 #
 # O QUE O CORPUS PROVA, E O QUE NÃO PROVA (medido 2026-08-07, e a 1ª versão exagerou):
 #   · a mudança é INERTE no corpus — 0 avisos novos. Mas o corpus NÃO distingue esta fronteira
-#     de quase nenhuma outra: mesmo `supersederConta(s){return 1}` dá 0 avisos, porque os 137
+#     de quase nenhuma outra: mesmo `supersederCount(s){return 1}` dá 0 avisos, porque os 137
 #     alvos de SUPERSEDES já estão todos reconciliados (113 superseded · 13 refuted · 11 done) e
 #     os 116 de REFUTES também. A prova de COMPORTAMENTO é a fixture, não o corpus.
 #   · a única alavanca que o corpus expõe é `done` no lado do alvo: 11 acusações — e as 11 são
@@ -173,7 +179,7 @@ awk -v mode="$MODE" -v radarSchema="$RADAR_SCHEMA" -v arq="$FILE" "${STATUS_FACT
 # `drifted` é o caso que motivou isto: statusFactor lhe dá 1.3 dizendo "nó VIVO, mais urgente que
 # confirmed", e a allowlist antiga dizia "não é confirmed, logo não conta" — duas doutrinas no
 # mesmo arquivo. O efeito era fail-open: a aresta sumia e a seção imprimia ✅ sem ter avaliado.
-function supersederConta(s) { return (s != "open" && s != "refuted" && s != "superseded") }
+function supersederCount(s) { return (s != "open" && s != "refuted" && s != "superseded") }
 
 # O ALVO ainda precisa reconciliar? Fora: `superseded`/`refuted` (já reconciliados) e a
 # `question` fechada como `done` — que é o remédio que ESTA MESMA seção prescreve ("pergunta
@@ -235,7 +241,7 @@ section == "nodes" && nid != "" {
   # existia — mas só para `trace:` (comentário abaixo) — e ficou fechada em 1 de 7 campos. Agora
   # a ancoragem cobre a classe inteira EM TODAS AS SEÇÕES: `nodes` (node_type/plane/layer/impact/
   # confidence/status/verified_*/label), `edges` (to/edge_type/on) e `meta` (schema_version/baseline).
-  # Crédito: sinal de campo da estrela onion-pessoal-app (2026-07-19), que pushou um grafo quebrado
+  # Crédito: sinal de campo de uma estrela adotante (2026-07-19), que pushou um grafo quebrado
   # exatamente por isto — um repo que FALA de layers/status escreve esses tokens em prosa o tempo todo.
   # Âncora também no `sub`: casar ancorado e extrair solto (`.*campo:`) recortaria pela ÚLTIMA
   # ocorrência da linha, devolvendo o rabo do label quando o valor cita o próprio token.
@@ -265,6 +271,27 @@ section == "nodes" && nid != "" {
     # criaria uma TERCEIRA linha e o grafo continuaria "verde".
     if (nid in verifiedAt && verifiedAt[nid] != trim(v)) dupKey[nid "|verified_at"] = verifiedAt[nid] " -> " trim(v)
     verifiedAt[nid] = trim(v)
+  }
+  # BI-TEMPORAL: `valid_from` (quando o FATO passou a valer) e `source_tier` (autoridade da fonte).
+  # ⚠️ ATE 2026-09-22 O MOTOR NAO LIA NENHUM DOS DOIS — sinal de campo de um adotante (2026-09-10,
+  # item 6), que mediu a gramatica prometendo bi-temporal contra um `grep` de ZERO no motor. A
+  # massa, medida com ANCORA de campo (`^[[:space:]]+valid_from:`) no corpus de `git ls-files
+  # '*.kg.yaml'`: 110 ocorrencias de `valid_from` em 9 grafos + 343 de `source_tier` = 453 campos
+  # sem consumidor. O primeiro numero que escrevi aqui — 465/12/349 — saiu de um grep SEM ancora,
+  # que conta prosa, label e trace citando o nome do campo: a passada adversarial o derrubou, e o
+  # erro pertence a mesma classe que este commit existe para curar. Campo que ninguem le nao e
+  # gramatica, e cerimonia: quem preenche acredita estar informando o motor, e nao esta.
+  # A deteccao de CHAVE REPETIDA acima vale para os dois: um `valid_from` duplicado agora alimenta
+  # um VEREDITO, entao o last-wins silencioso deixou de ser so ruido.
+  else if (line ~ /^[[:space:]]*valid_from:/) {
+    v = line; sub(/^[[:space:]]*valid_from:/, "", v)
+    if (nid in validFrom && validFrom[nid] != trim(v)) dupKey[nid "|valid_from"] = validFrom[nid] " -> " trim(v)
+    validFrom[nid] = trim(v)
+  }
+  else if (line ~ /^[[:space:]]*source_tier:/) {
+    v = line; sub(/^[[:space:]]*source_tier:/, "", v)
+    if (nid in sourceTier && sourceTier[nid] != trim(v)) dupKey[nid "|source_tier"] = sourceTier[nid] " -> " trim(v)
+    sourceTier[nid] = trim(v)
   }
   # Proveniência inline: a MIGALHA `arquivo:linha` (suporte de campo 2026-07-17). Âncora
   # em ^…trace: — um match solto casaria com label que cita "trace:"/"TRACES_TO" (este repo fala
@@ -298,6 +325,27 @@ section == "edges" && /^[[:space:]]*on:/ { v = $0; sub(/^[[:space:]]*on:/, "", v
 # meta: campos de governança de frescor/schema (proposta #1/#2 — ADR kg-freshness-gate)
 section == "meta" && /^[[:space:]]*schema_version:/ { v = $0; sub(/^[[:space:]]*schema_version:/, "", v); metaSchema = trim(v); next }
 section == "meta" && /^[[:space:]]*baseline:/       { v = $0; sub(/^[[:space:]]*baseline:/, "", v);       metaBaseline = trim(v); next }
+# ⚠️ `review_after` É LIDO AQUI DESDE 2026-09-18, e a razão veio de dois sinais de campo do mesmo
+# adotante (2026-09-10 e 2026-09-11). O campo existe na gramática e em 16 grafos; quem o cobrava era
+# só a REGRA 67 — SOFT, e no LINT. Então **quem rodava o radar nunca sabia que o grafo tinha vencido**,
+# e o radar saía VERDE sobre conhecimento caduco. Nas palavras do sinal: *"não é feature nova, é parar
+# de esconder"*. Não reprova (a doutrina do sinal é explícita: nada disso nasce bloqueando — gate que
+# impede trabalho é contornado com --no-verify na primeira sexta-feira, e aí se perde o mecanismo E a
+# informação). Avisa, onde todos olham.
+# ⚠️ AS MESMAS DUAS GUARDAS DO `target:` — e a lição é que elas NAO se herdam por proximidade.
+# A 1a redacao desta regra (2026-09-18) casava `^[[:space:]]*review_after:` solto, a TRINTA linhas
+# do bloco que explica, para o `target:`, as tres portas que esse padrao abre. A passada adversarial
+# do proprio PR reabriu as tres, e aqui a direcao e FAIL-OPEN (last-wins: um `review_after` futuro
+# aninhado num submapa, num bloco literal, ou num `meta:` reaberto depois de `nodes:`, SOBRESCREVE o
+# vencido e o grafo caduco sai verde). Campo novo em parser existente herda a superficie de ataque
+# do parser, nunca as curas dele.
+section == "meta" && metaClosed == 0 && /^[[:space:]]+review_after:/ {
+  if (match($0, /[^[:space:]]/) - 1 == metaFieldIndent) {
+    v = $0; sub(/^[[:space:]]*review_after:/, "", v); sub(/[[:space:]]+#.*$/, "", v)
+    metaReviewAfter = trim(v)
+  }
+  next
+}
 # `target:` é o que faz de um arquivo uma PROPOSTA: ele declara o grafo vivo onde o conteúdo vai
 # aterrissar. Ver a GUARDA DE MODO PROPOSTA na INTEGRIDADE para o que isso muda — e o que não muda.
 # ── O GATILHO DA PROPOSTA, e ele é ESTREITO DE PROPÓSITO ──────────────────────────────────────
@@ -386,13 +434,13 @@ END {
   for (i = 1; i <= ne; i++) {
     deg[efrom[i]]++; deg[eto[i]]++
     if (etype[i] == "REFUTES")     refutedBy[eto[i]]++
-    # SUPERSEDES só ACUSA se o superseder está VIVO — ver supersederConta(). Superseder `open`
+    # SUPERSEDES só ACUSA se o superseder está VIVO — ver supersederCount(). Superseder `open`
     # significa relação ainda não assentada, e o alvo legitimamente segue confirmado até que ela
     # assente (medido 2026-08-05: dos 15 alvos não-reconciliados do corpus, 1 — E_engine_measured —
     # tinha superseder `open`; acusá-lo seria cobrar reconciliação de superação que ninguém fechou).
     # Era ALLOWLIST de um valor até 2026-08-07, e por isso engolia superseder `drifted` — defeito
     # LATENTE (0 ocorrências no corpus), demonstrado na fixture supersedes-mixed, não em campo.
-    if (etype[i] == "SUPERSEDES" && supersederConta(nstatus[efrom[i]])) supersededByLive[eto[i]]++
+    if (etype[i] == "SUPERSEDES" && supersederCount(nstatus[efrom[i]])) supersededByLive[eto[i]]++
     if (etype[i] == "TRANSITIONS") { transOut[efrom[i]]++; transIn[eto[i]]++ }
     if (etype[i] == "HAS_STATE")   ownedState[eto[i]]++
     if (etype[i] == "TRACES_TO")   traceOut[efrom[i]]++
@@ -527,7 +575,7 @@ END {
   # --status-tsv — `id<TAB>status` de TODOS os nós, inclusive os de atenção ZERO.
   # POR QUE EXISTE (2026-09-06): o `--freshness-tsv` OMITE o nó de atenção 0 (todo `refuted`), e o
   # `kg-realign-project.sh` precisava justamente do status do SUPERADOR para aplicar o mesmo critério
-  # que este arquivo já aplica na reconciliação (`supersederConta`: superador morto não conta). Sem um
+  # que este arquivo já aplica na reconciliação (`supersederCount`: superador morto não conta). Sem um
   # feed completo, o realign acusava drift tipo-(c) PERMANENTE num grafo que este radar dava ✅ — duas
   # doutrinas na mesma casa, sobre o mesmo grafo. Feed novo e aditivo; nenhum consumidor existente muda.
   if (mode == "--status-tsv") {
@@ -647,6 +695,21 @@ END {
       }
     }
     if (found && swarn == 0) print "  ✅ nenhum alvo de SUPERSEDES ficou por reconciliar"
+
+    # ⚠ DECISÃO `done` EM DEV (2026-10-06, sinal de campo onion-slm, operador MU-18): a gramática diz que
+    # `decision` só vira `done` verificada em PROD, e o motor só rebaixava a atenção (DEV/done = 0,5), sem
+    # aviso — 20 de 20 mutações passaram caladas. ⚠ AGREGADO, não um por nó: o corpus tem 95 casos em 36
+    # grafos, e 95 linhas por leitura ensinariam a ignorar o aviso. Não reprova (`problems` intocado).
+    ndd = 0; ddids = ""
+    for (i = 1; i <= nn; i++) {
+      id = order[i]
+      if (ntype[id] == "decision" && nstatus[id] == "done" && plane[id] == "DEV") {
+        ndd++
+        if (ndd <= 5) ddids = ddids (ddids == "" ? "" : ", ") id
+      }
+    }
+    if (ndd > 0)
+      printf "  ⚠ decision-done-em-DEV: %d decisão(ões) `done` com plane: DEV (%s%s) — a gramática pede `done` verificada em PROD: promova o plane com verified_at, ou volte a open\n", ndd, ddids, (ndd > 5 ? ", …" : "")
     print ""
   }
 
@@ -686,7 +749,118 @@ END {
     }
   }
 
+  # ══ VALIDADE — o conhecimento deste grafo ainda vale? (⚠ atenção, NÃO reprova) ═════════════════
+  # Nasceu de DOIS sinais do mesmo adotante (2026-09-10 §7 e 2026-09-11 §2), e a frase deles é o
+  # desenho inteiro: *"não é feature nova, é parar de esconder"*. O campo `meta.review_after` está na
+  # gramática e em 16 grafos; quem o cobrava era só a REGRA 67 — SOFT, e no LINT. Quem rodava o radar
+  # via VERDE sobre conhecimento caduco, o que é pior que não ter o campo: é um painel que afirma
+  # saúde sem ter olhado para a validade.
+  # NÃO REPROVA, por doutrina explícita do sinal: *"nada disso nasce bloqueando — um gate que impede
+  # trabalho é contornado com --no-verify na primeira sexta-feira, e aí se perde o mecanismo E a
+  # informação"*. A métrica de saúde é o número diminuindo, como em toda catraca desta casa.
+  # ⚠️ O "NÃO MEDIDA" NASCEU NO MODO QUE NINGUEM CHAMA — e isso anulava metade da cura. A 1a redacao
+  # so declarava a ausencia em `--validade`, um modo com ZERO chamadores no repo; em `--all` (o
+  # default, e o que os 97 sitios usam) o radar ficava MUDO diante de grafo sem `review_after`.
+  # Medido no corpus vivo: 131 grafos, 25 falam, 106 calam. A frase do comentario acima — "a guarda
+  # declara que nao sabe, em vez de passar em silencio" — valia so onde ninguem olhava, que e
+  # exatamente a classe que este trabalho inteiro persegue: a guarda dizendo mais do que faz.
+  # Agora a ausencia e declarada TAMBEM em `--all`, em uma linha (o painel nao vira muro de texto).
+  if (mode == "--all" || mode == "--validade") {
+    # ⚠️ `hoje` VAZIO nao e "hoje": sem ele toda comparacao de string vira verde. Declara e para.
+    if (hoje !~ /^[0-9]{4}-[0-9][0-9]-[0-9][0-9]$/) {
+      print "══ VALIDADE — o conhecimento ainda vale? ══"
+      print "  ⚠ a data de HOJE não chegou legível ao radar — a validade NÃO FOI MEDIDA."
+      print "    (sem referência não há comparação; a guarda declara, nunca aprova por omissão)"
+      print ""
+    } else if (metaReviewAfter == "") {
+      print "══ VALIDADE — o conhecimento ainda vale? ══"
+      print "  ⚠ este grafo não declara meta.review_after — a validade NÃO FOI MEDIDA aqui."
+      if (mode == "--validade") {
+        print "    (a guarda declara que não sabe, em vez de passar em silêncio)"
+      }
+      print ""
+    } else if (metaReviewAfter !~ /^[0-9]{4}-[0-9][0-9]-[0-9][0-9]$/) {
+      # ⚠️ SEM ESTE RAMO A COMPARACAO E DE STRING CRUA, e ela aprova lixo: `em breve` e `2026-9-8`
+      # (nao zero-padded, vencido ha 10 dias) saiam AMBOS como "dentro da validade". A cura ja existia
+      # no proprio repo — a REGRA 67 (Grafo de pesquisa com REVISITA carimbada) exige AAAA-MM-DD no
+      # lint; o radar e que comparava sem olhar a forma.
+      print "══ VALIDADE — o conhecimento ainda vale? ══"
+      print "  ⚠ meta.review_after ILEGÍVEL (" metaReviewAfter ") — esperado AAAA-MM-DD."
+      print "    A validade NÃO FOI MEDIDA: comparar string crua aprovaria lixo e data sem zero à"
+      print "    esquerda (2026-9-8 é MENOR que 2026-09-18 como texto, e está vencida há 10 dias)."
+      print ""
+    } else {
+      print "══ VALIDADE — o conhecimento ainda vale? (⚠ atenção, não reprova) ══"
+      if (metaReviewAfter < hoje) {
+        print "  ⚠ REVISITA VENCIDA: meta.review_after " metaReviewAfter " < hoje " hoje
+        print "    O grafo inteiro pode estar caduco. Re-meça os nós plane:PROD (/onion:kg-freshness)"
+        print "    e o externo (/onion-research --revisit); depois carimbe review_after de novo."
+        print "    ⚠ RE-TESTAR, nunca RE-CARIMBAR: carimbo sem medição é reflexão falsa persistida."
+      } else {
+        print "  ✅ dentro da validade (review_after " metaReviewAfter " ≥ hoje " hoje ")"
+      }
+      print ""
+    }
+  }
+
   if (mode == "--all" || mode == "--provenance") {
+    # ══ BI-TEMPORAL — o fato e a verificação são datas DIFERENTES (⚠ atenção, não reprova) ══
+    # A gramática promete `valid_from` (quando o fato passou a valer) ≠ `verified_at` (quando EU o
+    # verifiquei), mais `source_tier` (autoridade). O motor não lia nenhum até 2026-09-22 — 453
+    # campos no corpus sem consumidor. Esta seção é o mínimo que os torna LOAD-BEARING.
+    # DUAS medidas, e cada uma DECLARA o que não alcançou (a seção VALIDADE acima já tinha este
+    # molde — `ILEGÍVEL … NÃO FOI MEDIDA` — e a 1ª versão desta seção não o copiou: 65 dos 110 nós
+    # caem no gate de formato, e ela imprimia ✅ sobre ZERO comparação em 3 grafos reais):
+    #   (a) ordem — verificar um fato ANTES de ele passar a valer é impossível, e denuncia carimbo
+    #       copiado ou data trocada. Compara na GRANULARIDADE QUE O DADO TEM: a 1ª versão exigia
+    #       AAAA-MM-DD dos dois lados e, medido, isso deixava 65 dos 110 nós do corpus de fora —
+    #       não por lixo (há ZERO lixo lá), mas porque `valid_from` legítimo vem em precisão
+    #       REDUZIDA do próprio ISO-8601: `2026`, `2026-09`. Uma fonte que datou o fato pelo ano
+    #       não tem dia para dar. Como ISO-8601 ordena lexicograficamente, truncar o mais preciso
+    #       ao tamanho do mais grosso compara certo — e o que sobra de fato ilegível é DECLARADO
+    #       (o molde `ILEGÍVEL … NÃO FOI MEDIDA` que a seção VALIDADE acima já tinha).
+    #   (b) escala — `source_tier` fora de 1–10 é autoridade que o motor não consegue ler.
+    if (mode == "--all") {
+      _bt_cov = 0; _bt_cmp = 0; _bt_unread = 0; _bt_bad = ""; _bt_tier = 0; _bt_tierbad = ""
+      for (i in validFrom) {
+        if (validFrom[i] == "") continue
+        _bt_cov++
+        _vf = validFrom[i]; gsub(/^["\047]|["\047]$/, "", _vf)
+        _va = (i in verifiedAt) ? verifiedAt[i] : ""; gsub(/^["\047]|["\047]$/, "", _va)
+        if (_vf !~ /^[0-9]{4}(-[0-9][0-9](-[0-9][0-9])?)?$/ \
+            || _va !~ /^[0-9]{4}(-[0-9][0-9](-[0-9][0-9])?)?$/) { _bt_unread++; continue }
+        _bt_cmp++
+        # granularidade comum = o mais CURTO dos dois (ISO-8601 ordena por prefixo)
+        _g = (length(_vf) < length(_va)) ? length(_vf) : length(_va)
+        if (substr(_va, 1, _g) < substr(_vf, 1, _g)) {
+          _bt_bad = _bt_bad "\n    ✗ " i ": verified_at " _va " ANTES de valid_from " _vf
+        }
+      }
+      for (i in sourceTier) {
+        if (sourceTier[i] == "") continue
+        _bt_tier++
+        if (sourceTier[i] !~ /^([1-9]|10)$/) {
+          _bt_tierbad = _bt_tierbad "\n    ✗ " i ": source_tier " sourceTier[i] " fora da escala 1–10"
+        }
+      }
+      if (_bt_cov > 0 || _bt_tier > 0) {
+        print "══ BI-TEMPORAL — o fato ≠ a verificação (⚠ atenção, não reprova) ══"
+        printf "  %d nó(s) com valid_from (%d comparável(is)) · %d com source_tier\n", _bt_cov, _bt_cmp, _bt_tier
+        if (_bt_bad != "") {
+          print "  ⚠ VERIFICAÇÃO ANTES DO FATO — impossível, e denuncia carimbo copiado:" _bt_bad
+        } else if (_bt_cmp > 0) {
+          printf "  ✅ nenhuma verificação anterior ao fato, nos %d par(es) comparável(is)\n", _bt_cmp
+        }
+        if (_bt_unread > 0) {
+          printf "  ⚠ %d nó(s) com valid_from/verified_at ILEGÍVEL — a ordem NÃO FOI MEDIDA neles (esperado AAAA-MM-DD)\n", _bt_unread
+        }
+        if (_bt_tierbad != "") {
+          print "  ⚠ source_tier FORA DA ESCALA — autoridade declarada que o motor não lê:" _bt_tierbad
+        }
+        print ""
+      }
+    }
+
     print "══ PROVENIÊNCIA — decisão ancorada em origem (⚠ atenção, não reprova) ══"
     # Completude da camada AUDIT: uma decisão deveria apontar PARA a sua origem — a aresta
     # TRACES_TO (ADR/artefato) ou a migalha `trace: arquivo:linha` inline. Sem NENHUMA das
@@ -720,6 +894,12 @@ END {
       problems++
     } else {
       print "  ✅ schema_version " metaSchema " (bate com o radar)"
+    }
+    # MULTI-DOCUMENTO (2026-10-06, sinal de campo onion-slm): este radar lê linha a linha e aceita
+    # `---` no meio do arquivo; o kg-drive-project.sh e o kg-realign-project.sh usam parser YAML de
+    # documento ÚNICO e recusam (exit 2). Aviso, não reprova: o arquivo é legível AQUI.
+    if (docSeps >= 2) {
+      print "  ⚠ multi-documento: " docSeps " separadores `---` — o /onion:drive e o kg-realign recusam este arquivo (parser de documento único); tire os `---` (os campos viram chaves de topo, nenhum dado muda)"
     }
     print ""
   }

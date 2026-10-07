@@ -3,7 +3,7 @@ name: hotfix
 description: |
   Emergency workflow completo: task no Task Manager + branch hotfix + desenvolvimento.
   Use para correções urgentes em produção.
-allowed-tools: Bash(git *) Read Edit Write Bash(cat .env*)
+allowed-tools: Bash(git *) Read Edit Write Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh *)
 
 parameters:
   - name: description
@@ -35,7 +35,7 @@ related_agents:
 
 # 🔥 Engineer Hotfix
 
-Emergency workflow completo: Task + Branch + Desenvolvimento, em um comando. **Provider-agnóstico** (Jira, ClickUp, Asana, Linear ou none).
+Emergency workflow completo: Task + Branch + Desenvolvimento, em um comando. **Provider-agnóstico** (Jira, ClickUp, Asana, Linear, Zoho Projects ou none).
 
 ## 🎯 Objetivo
 

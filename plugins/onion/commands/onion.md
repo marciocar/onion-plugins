@@ -83,9 +83,9 @@ Delegar para o agente com contexto coletado.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 Estrutura:
-∟ 109 comandos em 10 categorias
-∟ 51 agentes especializados
-∟ Task Manager Abstraction (Jira/ClickUp/Asana/Linear)
+∟ comandos invocáveis, por categoria (contagem na SSOT gerada: `docs/onion/inventory.md`)
+∟ agentes especializados, por categoria
+∟ Task Manager Abstraction (Jira/ClickUp/Asana/Linear/Zoho Projects)
 
 🚀 Comandos Principais:
 ∟ /product/task - Criar tasks
@@ -165,6 +165,7 @@ Quando usar comandos que criam tasks (`/product/task`, `/product/feature`):
 - ClickUp (REST API; MCP opcional) - `TASK_MANAGER_PROVIDER=clickup`
 - Asana (REST API; MCP opcional) - `TASK_MANAGER_PROVIDER=asana`
 - Linear (REST API; MCP opcional) - `TASK_MANAGER_PROVIDER=linear`
+- Zoho Projects (REST API V3; **sem MCP nativo**) - `TASK_MANAGER_PROVIDER=zoho`
 - None (modo offline) - `TASK_MANAGER_PROVIDER=none`
 
 **Esta regra é OBRIGATÓRIA e será sempre executada.**

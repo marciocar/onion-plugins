@@ -3,9 +3,9 @@ name: task
 description: |
   Criação de tasks com decomposição hierárquica inteligente.
   Use para criar tasks estruturadas com subtasks e action items.
-  Suporta: Jira, ClickUp, Asana, Linear (via TASK_MANAGER_PROVIDER).
+  Suporta: Jira, ClickUp, Asana, Linear, Zoho Projects (via TASK_MANAGER_PROVIDER).
   Diferença vs /onion-product:create-task-structure: este PERSISTE no task manager ativo; o create-task-structure é decomposição LOCAL read-only (saída textual, não grava).
-allowed-tools: Bash(cat .env*) Read Write Grep Glob
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh *) Read Write Grep Glob
 parameters:
   - name: description
     description: Descrição da task
@@ -47,7 +47,7 @@ antes de qualquer execução, com plano confirmado pelo usuário.
 ## 🚨 PASSO 0 (OBRIGATÓRIO): Detectar Provedor
 
 Detectar e validar o provedor ativo **antes de qualquer ação**, seguindo o
-fragmento canônico `common:prompts:task-manager-provider-detection`: ler `.env`,
+fragmento canônico `common:prompts:task-manager-provider-detection`: obter o provider pelo helper (`bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh --provider`), nunca abrindo o `.env`,
 validar a variável obrigatória do provedor e aplicar o fallback gracioso em
 modo offline.
 
@@ -64,7 +64,7 @@ SE project_name NÃO fornecido:
   - Se não configurado: listar opções e perguntar
 ```
 
-> Mapeamento de IDs por provedor: `.claude/utils/task-manager/adapters/{provedor}.md`.
+> Mapeamento de IDs por provedor: `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/adapters/{provedor}.md`.
 
 ### Passo 2: Análise de Contexto e Compreensão
 
@@ -175,7 +175,7 @@ Cada Subtask:
 - name / markdownDescription (+ story points) / priority (herdar ou 'normal') / tags
 ```
 
-> Formato completo de entrada/saída: `.claude/utils/task-manager/interface.md`.
+> Formato completo de entrada/saída: `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/interface.md`.
 
 #### 6.2. Criar task principal, subtasks e comentário (via Task Manager Adapter)
 
@@ -184,9 +184,10 @@ adapter resolve o transporte (REST default; MCP opcional via `TASK_MANAGER_TRANS
 mapeamentos exatos de campos, nomes de ferramentas, conversão de markdown e construção de URL
 estão nos adapters — NÃO duplicar aqui:**
 
-- ClickUp → `.claude/utils/task-manager/adapters/clickup.md`
-- Asana → `.claude/utils/task-manager/adapters/asana.md`
-- Linear → `.claude/utils/task-manager/adapters/linear.md`
+- Jira · ClickUp · Asana · Linear · Zoho Projects → `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/adapters/{provedor}.md`
+  (a enumeração de um caminho por provedor foi colapsada em 2026-09-30: cada linha era um caminho
+  `.claude/` NU que não resolve no consumidor do plugin — REGRA 74 — e a forma `{provedor}.md`, que a
+  l.67 já usava, diz o mesmo sem criar passivo novo a cada provider que entra)
 
 Sequência (idêntica em todos os provedores, variando só o adapter):
 1. **Criar task principal** → extrair `id`/`gid` e `url`.
@@ -210,7 +211,7 @@ Sequência (idêntica em todos os provedores, variando só o adapter):
 
 > Convenções de formatação de comentários: variam conforme o provedor ativo e são
 > resolvidas pelo adapter (ex.: Unicode no ClickUp via `common:prompts:clickup-patterns`;
-> ADF no Jira; Markdown no Linear). Detalhes em `.claude/utils/task-manager/adapters/`.
+> ADF no Jira; Markdown no Linear). Detalhes em `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/adapters/`.
 
 **Modo offline (`none`):** gerar `id` local (`local-{timestamp}`), criar documento em
 `.claude/sessions/tasks/{id}.md` (subtasks em `.../{parent-id}/subtasks/`), anexar o
@@ -242,7 +243,7 @@ Se houve execução no Passo 7:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📋 Task: {{description}}
 🔗 URL: [url do provedor]
-📊 Provedor: [clickup/asana/linear/local]
+📊 Provedor: [clickup/asana/jira/linear/zoho/local]
 
 🎲 STORY POINTS:
 ∟ Task Principal: [X] pontos
@@ -266,14 +267,14 @@ Se houve execução no Passo 7:
 
 ## 🔗 Referências
 
-- **Detecção de provedor:** `.claude/utils/task-manager/detector.md`
-- **Interface (entrada/saída normalizada):** `.claude/utils/task-manager/interface.md`
-- **Tipos compartilhados:** `.claude/utils/task-manager/types.md`
-- **Adapters (API-first; transporte por provedor — REST default, MCP opcional):** `.claude/utils/task-manager/adapters/{clickup,asana,linear}.md`
+- **Detecção de provedor:** `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/detector.md`
+- **Interface (entrada/saída normalizada):** `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/interface.md`
+- **Tipos compartilhados:** `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/types.md`
+- **Adapters (API-first; transporte por provedor — REST default, MCP opcional):** `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/adapters/{clickup,asana,linear}.md`
 - **Decomposição:** `@task-specialist`
 - **Estimativas:** `@story-points-framework-specialist`, `/product/estimate`,
   `${CLAUDE_PLUGIN_ROOT}/kb/framework-story-points.md`
-- **Formatação por provedor:** resolvida pelo adapter ativo em `.claude/utils/task-manager/adapters/` (ex.: `common:prompts:clickup-patterns` para ClickUp)
+- **Formatação por provedor:** resolvida pelo adapter ativo em `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/adapters/` (ex.: `common:prompts:clickup-patterns` para ClickUp)
 
 ## ⚠️ Notas
 

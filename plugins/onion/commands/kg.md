@@ -15,7 +15,7 @@ allowed-tools: Read Write Edit Grep Glob Bash(bash ${CLAUDE_PLUGIN_ROOT}/validat
 argument-hint: "[<arquivo.kg.yaml> | novo <slug> | map <área> | diagnose <slug> | backfill [<escopo>]]  (vazio = localizar .kg.yaml existente e rodar radar)"
 related_commands:
   - meta:evolve
-  - meta:graph
+  - /onion:graph
   - /onion:co-evolve
 related_agents:
   - research-agent
@@ -46,7 +46,7 @@ impressão do modelo.
   redesenhar/refatorar — o contrato primeiro, o pixel/refactor depois (ver Modo map abaixo).
 
 **NÃO** usar para: lista simples de tarefas (use o task manager) · estrutura do próprio framework
-(use `meta:graph`, que é outra lente — derivada da spec-as-code, sem store).
+(use `/onion:graph`, que é outra lente — derivada da spec-as-code, sem store).
 
 ## 📁 Store (eixo SDAAL)
 
@@ -319,10 +319,15 @@ bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo> --reconcile      # R
 bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo> --freshness-tsv  # STALE → passo "o que re-verificar"
 bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo> --open-tsv        # a FILA COMPLETA de trabalho aberto
 
-# a fila do CORPUS INTEIRO (o radar lê um grafo por vez; o laço é de quem chama):
+# a fila do corpus inteiro (o radar lê um grafo por vez; o laço é de quem chama).
+# ⚠️ O `head` CORTA e por isso o total vem JUNTO: a redação anterior dizia "FILA COMPLETA" /
+# "CORPUS INTEIRO" e cortava 20 de ~312 em silêncio — promessa de completude com corte literal
+# (achado do Elenxo do PR #909). Quem corta declara, mesmo em snippet de documentação.
 for f in $(git ls-files '*.kg.yaml' | grep -v /fixtures/); do
   bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh "$f" --open-tsv
-done | sort -t$'\t' -k8 -rn | head -20
+done | sort -t$'\t' -k8 -rn > /tmp/fila.tsv
+printf 'TOP 20 de %s itens abertos (o resto está em /tmp/fila.tsv)\n' "$(wc -l < /tmp/fila.tsv)"
+head -20 /tmp/fila.tsv
 bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-view.sh  <arquivo> --json           # os ids canônicos (paridade com o radar)
 ```
 
@@ -503,12 +508,12 @@ Antes de qualquer projeção cruzar fronteira (material pro cliente, sinal pro c
 - **Fase-2 semântica** (método, não código do core): embeddings + cosseno para flag de redundância
   entre nós — cada instância implementa com seu stack (soberania); o core fica no determinístico.
 - 1º dogfood real (56 nós/81 arestas em um adotante; 37 nós/33 arestas no core): ver
-  onion-evolution-2026-07-04.md e o sinal
-  2026-07-04-kg-primeiro-dogfood-federacao.md.
+  `onion-evolution-2026-07-04` (core-only) e o sinal
+  `2026-07-04-kg-primeiro-dogfood-federacao.md` (core-only, não viaja).
 
 ## 🔗 Referências
 
 - Doutrina: [knowledge-graph-sdaal.md](${CLAUDE_PLUGIN_ROOT}/kb/knowledge-graph-sdaal.md)
 - Motor: `${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh` (soberano; awk determinístico)
 - Vertical: onion-adr-verticals-investigation-cartography-2026-07.md
-- Lente irmã (estrutura do framework): `meta:graph`
+- Lente irmã (estrutura do framework): `/onion:graph`

@@ -67,7 +67,7 @@ O dogfood do Onion tem duas camadas que se complementam:
 
 Regra prática: se mudou um **artefato runnable** (comando/skill/script/adapter), o gate mecânico
 **não basta** — rode o artefato. Se mudou uma **guarda** (lint/fixtures), o selftest é parte do
-dogfood. Se a mudança altera **contagens** (comandos/agentes/skills/KBs), `meta:inventory`
+dogfood. Se a mudança altera **contagens** (comandos/agentes/skills/KBs), `/onion:inventory`
 (que roda `lint-artifacts.sh --fix`) é o dogfood que propaga a SSOT.
 
 ---
@@ -104,7 +104,7 @@ Casos reais onde o dogfood pegou o que o happy-path escondia:
 
 | Mudança | O que o dogfood fez | O que pegou |
 |---|---|---|
-| **Self-heal de inventário** (PR #126) | Dogfood do fluxo: adicionar **e remover** um recurso real e rodar `meta:inventory` | Bug real: o `CLAUDE.md` vive **fora** dos scan-roots do lint (`.claude/`+`docs/`); o `--fix` global não o alcançava. O happy-path (CLAUDE.md já correto) escondia — só a mudança real de contagem expôs. |
+| **Self-heal de inventário** (PR #126) | Dogfood do fluxo: adicionar **e remover** um recurso real e rodar `/onion:inventory` | Bug real: o `CLAUDE.md` vive **fora** dos scan-roots do lint (`.claude/`+`docs/`); o `--fix` global não o alcançava. O happy-path (CLAUDE.md já correto) escondia — só a mudança real de contagem expôs. |
 | **`/onion:all-tools`** (PR #128) | Rodar o comando reescrito e produzir o catálogo real da sessão | Lacunas: faltava marcar **status de conexão MCP** (conectado vs exige-auth) e tratar **tools deferidas por nome** (sem inventar descrição — o pecado do dialeto-Cursor em outra roupagem). |
 | **Limpeza `.claude/docs/`** (PR #127) | Verificação **adversarial** do veredito do explorer | O veredito "deletar os c4" teria **quebrado** os agentes c4 (que os referenciam); a verificação reverteu para "mover" (e o move **reparou** refs já penduradas). |
 | **`.env.example`** (fix #89) | Dogfooding do Onion **no adotante** (um adotante, ao vivo) | Bug de campo que virou fix never-clobber no core, via upstream do inbox (`docs/evolution/README.md`, interno do core). |
@@ -159,7 +159,7 @@ Nenhum dos três é opcional, e nenhum é novo — o que faltava era dizer que s
 | Instância | Onde vive (SSOT) | TTL | Sinal de vencimento | Reconciliação |
 |---|---|---|---|---|
 | **re-dogfood** do fix | esta doutrina (§🚦 item 3) | — | o fix existe | re-exercitar até passar |
-| **re-teste** de migalha | `/onion:diary review` | `review_after` (90d) | ⏰ no boot (hook) | `superseded: true` (nunca apagar) |
+| **re-teste** de migalha | `/onion:diary` | `review_after` (90d) | ⏰ no boot (hook) | `superseded: true` (nunca apagar) |
 | **re-verificação** do KG | [knowledge-graph-sdaal §Frescor](knowledge-graph-sdaal.md#frescor-e-versão-de-schema--o-radar-recusaavisa-quando-a-ssot-driftou) | `verified_at` × `meta.baseline` | ⚠ STALE (radar `--freshness`) | `REFUTES`/`SUPERSEDES` (append-mostly) |
 
 O parentesco é **declarado, não analogia**: o gate de frescor do KG é filho do `review_after` do diário

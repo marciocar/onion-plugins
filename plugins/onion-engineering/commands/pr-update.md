@@ -1,7 +1,7 @@
 ---
 name: pr-update
 description: Atualizar PR existente com mudanças adicionais.
-allowed-tools: Bash(git *) Bash(cat .env*) Read Edit Write Grep
+allowed-tools: Bash(git *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh *) Read Edit Write Grep
 category: engineer
 tags: [pr, update, git]
 version: "3.0.0"
@@ -48,7 +48,7 @@ Atualizar um Pull Request existente com mudanças adicionais. Este comando autom
 
 ## 🤝 Integração com o Task Manager
 
-Antes de operar com a task, carregue o `.env` e leia `TASK_MANAGER_PROVIDER` (`jira` | `clickup` | `asana` | `linear` | `none`) para rotear ao provider e adapter corretos. Se `none`, pule a atualização remota (apenas commit + push).
+Antes de operar com a task, carregue o `.env` e leia `TASK_MANAGER_PROVIDER` (`jira` | `clickup` | `asana` | `linear` | `zoho` | `none`) para rotear ao provider e adapter corretos. Se `none`, pule a atualização remota (apenas commit + push).
 
 ### Detecção de Task Ativa
 - Lê task ID do arquivo `.claude/sessions/[slug]/context.md`
@@ -59,9 +59,9 @@ Antes de operar com a task, carregue o `.env` e leia `TASK_MANAGER_PROVIDER` (`j
 
 O comentário de atualização deve documentar: tipo do commit (fix | feat | refactor | docs | chore), hash do commit, arquivos modificados, linhas adicionadas/removidas e descrição das mudanças.
 
-**Adicionar comentário via abstração agnóstica** (carregar `.env` → ler `TASK_MANAGER_PROVIDER`):
+**Adicionar comentário via abstração agnóstica** (provider pelo helper: `bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh --provider`):
 
-Chamar `taskManager.addComment(taskId, conteudo)` e `taskManager.updateStatus(taskId, status)` — o adapter resolve automaticamente formato (ADF / Unicode / Markdown), transporte (REST API por padrão; MCP opcional via `TASK_MANAGER_TRANSPORT=mcp`) e qual especialista acionar por provider. Referências: `docs/meta-specs/integrations.md` e `.claude/utils/task-manager/adapters/`.
+Chamar `taskManager.addComment(taskId, conteudo)` e `taskManager.updateStatus(taskId, status)` — o adapter resolve automaticamente formato (ADF / Unicode / Markdown), transporte (REST API por padrão; MCP opcional via `TASK_MANAGER_TRANSPORT=mcp`) e qual especialista acionar por provider. Referências: `docs/meta-specs/integrations.md` e `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/adapters/`.
 
 - **`none`** → não persistir comentário remoto.
 

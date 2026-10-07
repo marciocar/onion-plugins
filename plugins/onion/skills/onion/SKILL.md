@@ -12,13 +12,13 @@ description: >
   pedido de orientação/entrada no sistema. NÃO ative por menções a "onion" dentro
   de frases (nomes de arquivo, docs, código, esta base de código se chama onion),
   apenas pela invocação isolada da palavra.
-allowed-tools: Bash(grep * .env) Bash(ls .claude/*) Bash(git branch*)
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh *) Bash(ls .claude/*) Bash(git branch*)
 ---
 
 ## Estado Atual do Projeto
 
 Provider ativo:
-!`grep -E '^TASK_MANAGER_PROVIDER=' .env 2>/dev/null | head -1 || echo "TASK_MANAGER_PROVIDER=não configurado"`
+!`p="$(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh --provider 2>/dev/null)" && echo "TASK_MANAGER_PROVIDER=${p}" || echo "TASK_MANAGER_PROVIDER=não configurado"`
 
 Sessões abertas:
 !`ls .claude/sessions/ 2>/dev/null || echo "(nenhuma sessão ativa)"`
@@ -111,7 +111,7 @@ Branch atual:
 3. **P2 — Semântica ou invocação explícita?** Domínio/expertise recorrente → **skill** (SKILL.md <500 linhas + `references/`/`scripts/` sob demanda — progressive disclosure). Ponto de entrada consciente `/nome` com juízo de quando → **comando** fino. Conhecimento de fundo lido pontual (doutrina/ADR) → **KB**. Especialista delegável → **agente** (`.claude/agents/<categoria>/`). Façade multi-provider → **abstração SDAAL** — mas só passando no **Teste do Eixo**: ≥2 implementações **reais** (não prometidas) · escolha do `.env`, não do autor · consumidor **precisa** ser cego. Falhou uma → **script** (P1). 1 provider real + N prometidos = script; o 2º provider real é o gatilho. Critério: abstraction-doctrine.
 4. **P3 — Irreversível?** Muta estado externo sem undo (push --force, deploy, merge de release, bulk task-manager) → **+ gate humano** (camada ORTOGONAL — soma-se a qualquer caixa de P2).
 
-**Combinação canônica** (procedimento completo ≈ combinação, não átomo): script (controle) + comando (juízo) + KB/ADR (doutrina) + gate (se irreversível). Template no core: vertical `co-*` (`co-*.sh` + `co-*.md` + ADR + human-gate). Detalhe: discovery S1.
+**Combinação canônica** (procedimento completo ≈ combinação, não átomo): script (controle) + comando (juízo) + KB/ADR (doutrina) + gate (se irreversível). Template no core: vertical `co-*` (`co-*.sh` + `co-*.md` + ADR + human-gate). Detalhe: `onion-toolbox-s1-scoping-2026-06` (core-only).
 
 ---
 
@@ -200,7 +200,7 @@ Branch atual:
 ## Gotchas Críticos
 
 **Task Manager Provider obrigatório**
-Antes de qualquer operação com tasks: ler `TASK_MANAGER_PROVIDER` no `.env`. Providers válidos: `clickup`, `jira`, `asana`, `linear`, `none`. Se ausente ou inválido: avisar o usuário e sugerir `/onion:setup-integration`. Nunca inventar valores nem assumir outro provider.
+Antes de qualquer operação com tasks: ler `TASK_MANAGER_PROVIDER` no `.env`. Providers válidos: `clickup`, `jira`, `asana`, `linear`, `zoho`, `none`. Se ausente ou inválido: avisar o usuário e sugerir `/onion:setup-integration`. Nunca inventar valores nem assumir outro provider.
 
 **Feature slug: sempre kebab-case**
 Correto: `user-authentication`. Errado: `user_authentication`, `UserAuth`, `userAuth`. O slug é usado tanto no nome da branch Git quanto na pasta de sessão `.claude/sessions/<feature-slug>/`.

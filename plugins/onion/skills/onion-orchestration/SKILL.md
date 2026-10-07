@@ -48,12 +48,20 @@ Nativas" (fonte única).
    `Workflow({scriptPath})`. **Três ganhos de uma vez, e só o primeiro é óbvio:**
 
    ```bash
-   node --input-type=module --check < <script>   # exit 1 = sintaxe quebrada
+   bash ${CLAUDE_PLUGIN_ROOT}/validation/workflow-syntax-check.sh <script>   # exit 1 = sintaxe quebrada
    ```
 
    ⚠️ **`node --check` sozinho MENTE** — trata `.js` como CommonJS e deixa passar erro de módulo
    (medido 2026-08-02: backtick perdido dentro de template literal → `--check` exit 0, `import()`
-   exit 1). Use `--input-type=module`, ou extensão `.mjs`.
+   exit 1).
+   ⚠️ **E `node --input-type=module --check` sozinho MENTE AO CONTRÁRIO** — reprova script
+   VÁLIDO. Medido 2026-09-22: **2 de 2** scripts do corpus (`onion-research.js`,
+   `census-workflow.mjs`) saem `Illegal return statement`, porque o corpo roda dentro de uma função
+   async e `return` no topo é legal no runtime — o `--check` como módulo não sabe disso. Esta linha
+   mandou, por semanas, rodar um comando cujo vermelho era certo em 100% dos casos: guarda que pune
+   quem obedece ensina a ignorar a guarda, e o preço é o dia em que o vermelho for de verdade.
+   Por isso o comando acima é o **wrapper do repo**, que espelha o runtime (meta no topo, corpo
+   dentro de `async function`) antes de chamar o `node`.
 
    - **(a) Sintaxe pega antes de gastar worker.** O modo-de-falha recorrente: o script é um
      template literal gigante, e **backtick em prosa** (hábito de markdown) o parte ao meio.
@@ -248,6 +256,18 @@ força), e a doutrina desta casa é que `fix-must-become-mechanism` vale **quand
   orquestração → "Disponibilidade de modelos" (fonte única). Nunca ofereça modelo de outro provider.
 
 ## Gotchas
+
+- **Refutador roda em WORKTREE ISOLADA — e isso é mecanismo, não etiqueta.** Medido em 2026-09-20:
+  um refutador com briefing que dizia, literalmente, *"Não modifique NENHUM arquivo; só meça e
+  reporte"* escreveu em **seis** arquivos da árvore principal — incluindo o script de merge
+  (`ops/pr-merge-verified.sh`) e o lint. O conteúdo era **bom** (achou um defeito que quebraria
+  todo PR), e é justamente isso que torna o caso instrutivo: a instrução não falhou por ser
+  ignorada de má-fé, falhou porque **instrução em prosa não é fronteira**. Pior, a violação só
+  apareceu por acidente — três casos de bancada que eu não escrevi ficaram vermelhos.
+  A cura é a mesma que esta casa aplica a tudo: `isolation: 'worktree'` no spawn. O refutador
+  continua podendo escrever e **provar** (é o que o torna útil); ele só não alcança a sua árvore,
+  e a integração vira ato deliberado seu, com diff na mão. Disciplina não escala; fronteira sim.
+  > `Agent({ subagent_type: 'general-purpose', isolation: 'worktree', prompt: '<mandato de refutar>' })`
 
 - **Fan-out só com independência real.** Dependência de ordem ou estado
   compartilhado mutável → mantenha serial. Paralelizar trabalho dependente

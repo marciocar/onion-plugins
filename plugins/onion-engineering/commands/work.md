@@ -3,7 +3,7 @@ name: work
 description: |
   Continuar trabalho em feature ativa. Lê sessão e identifica próxima fase.
   Atualiza progresso via Task Manager abstraction.
-allowed-tools: Bash(git *) Bash(cat .env*) Bash(ls *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh*) Read Write Edit Grep Glob
+allowed-tools: Bash(git *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh *) Bash(ls *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh*) Read Write Edit Grep Glob
 category: engineer
 tags: [development, workflow, session, kg-first]
 version: "3.1.0"
@@ -20,7 +20,7 @@ Estamos atualmente trabalhando em uma funcionalidade que está especificada na s
 
 Para trabalhar nisso, você deve usar o **protocolo de leitura escalonado** (Tier 0→3) — **nunca** faça `cat` da pasta inteira (anti-pattern "Context Dump"; protocolo em [worklog-protocol.md §4](${CLAUDE_PLUGIN_ROOT}/kb/worklog-protocol.md)):
 
-0. **KG-first (o primeiro ato, antes do Tier 0):** se existir um `.kg.yaml` no repo (`git ls-files '*.kg.yaml' | grep -v '/fixtures/'` — resolve ao vivo; o glob hardcoded anterior era **36% cego**), **consulte-o ANTES** do `STATE.md`/git — é o SSOT de estado/domínio, **acima** do git. Rode `bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo>`, cite **ids de nó** — a seção **ESTADO** é a fila de abertos que o radar afunda, e é ali que costuma estar o próximo passo que este comando procura —, e faça **drive-to-verify** (cruzar claims `plane: PROD` de alto impacto contra o vivo) **antes** de agir; nó stale mente (`--freshness`). **Mecanismo, não conselho** — consultar por padrão é a forcing function contra a reincidência (sinal de campo 2026-07-16). Sem `.kg.yaml` → siga ao Tier 0. Doutrina: knowledge-graph-sdaal.md §SSOT-as-runtime.
+0. **KG-first (o primeiro ato, antes do Tier 0):** se existir um `.kg.yaml` no repo (`git ls-files '*.kg.yaml' | grep -v -e '/fixtures/' -e '^docs/materials/'` — resolve ao vivo; o glob hardcoded anterior era **36% cego**), **consulte-o ANTES** do `STATE.md`/git — é o SSOT de estado/domínio, **acima** do git. Rode `bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh <arquivo>`, cite **ids de nó** — a seção **ESTADO** é a fila de abertos que o radar afunda, e é ali que costuma estar o próximo passo que este comando procura —, e faça **drive-to-verify** (cruzar claims `plane: PROD` de alto impacto contra o vivo) **antes** de agir; nó stale mente (`--freshness`). **Mecanismo, não conselho** — consultar por padrão é a forcing function contra a reincidência (sinal de campo 2026-07-16). Sem `.kg.yaml` → siga ao Tier 0. Doutrina: knowledge-graph-sdaal.md §SSOT-as-runtime.
 1. **Tier 0 (sempre, ~1KB):** leia **só o `STATE.md`**. Seu `## NEXT` é o ponteiro **autoritativo** — diz fase atual e próximo passo. Não escaneie badges do `plan.md` para decidir.
 2. **Tier 1 (sob demanda):** leia **apenas o bloco da fase `[ACTIVE]`** do `plan.md` (a fase nomeada em `STATE.md.NEXT.phase`).
 3. **Tier 2 (raro):** abra `architecture.md`/`context.md` **só** se o `## Map` do `STATE.md` indicar que esta fase precisa — e só a seção apontada.
@@ -118,9 +118,9 @@ Toda vez que completar uma fase do plano (**checkpoint** — ver [worklog-protoc
 - Contrato de worklog (SSOT): [gitflow-patterns.md §Contrato de Sessão](${CLAUDE_PLUGIN_ROOT}/kb/gitflow-patterns.md#contrato-de-sessão-de-desenvolvimento)
 - Protocolo de leitura/resume/checkpoint: [worklog-protocol.md](${CLAUDE_PLUGIN_ROOT}/kb/worklog-protocol.md)
 - Higiene de contexto: context-window-optimization.md
-- Abstração: `.claude/utils/task-manager/`
-- Detector: `.claude/utils/task-manager/detector.md`
-- Factory: `.claude/utils/task-manager/factory.md`
+- Abstração: `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/`
+- Detector: `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/detector.md`
+- Factory: `${CLAUDE_PLUGIN_ROOT}/utils/task-manager/factory.md`
 - Padrões de comentários: `common/prompts/clickup-patterns.md`
 
 Agora, veja a fase atual de desenvolvimento e forneça um plano ao usuário sobre como abordá-la.

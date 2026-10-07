@@ -1,7 +1,7 @@
 ---
 name: feature
 description: Criar task de feature no gerenciador configurado para planejamento e backlog.
-allowed-tools: Read Bash(cat .env*)
+allowed-tools: Read Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh *)
 category: product
 tags: [feature, task-manager, backlog]
 version: "3.0.0"
@@ -33,7 +33,7 @@ Você é um assistente de IA especializado em **criar tasks de feature no gerenc
 - Herda contexto da sessão ativa (se houver)
 - Links com tasks relacionadas
 - Tags apropriadas para categorização
-- Suporta múltiplos provedores (ClickUp, Asana, Linear)
+- Suporta múltiplos provedores (ClickUp, Asana, Linear, Zoho Projects)
 
 ---
 
@@ -81,7 +81,7 @@ echo "📝 Feature slug: $FEATURE_SLUG"
 **IMPORTANTE:** Use Task Manager abstraction para detectar contexto independente do provedor:
 
 ```typescript
-// Via abstração - funciona para qualquer provedor (ClickUp, Asana, Linear)
+// Via abstração - funciona para qualquer provedor (ClickUp, Asana, Linear, Zoho Projects)
 const taskManager = getTaskManager();
 
 // Detectar projeto/lista da sessão atual

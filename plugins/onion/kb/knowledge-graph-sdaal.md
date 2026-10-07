@@ -129,7 +129,7 @@ nunca deletar — `/onion:diary review`).
 
 > **Normativo: `id` em INGLÊS, `label` em pt-BR.** Segue a skill `language-standards`/
 > `code-standards` — `id` é identificador (código: inglês),
-> `label` é prosa lida por humano (pt-BR). **Custo real medido em campo** (sinal onion-pessoal-app,
+> `label` é prosa lida por humano (pt-BR). **Custo real medido em campo** (sinal de um adotante em runtime móvel,
 > 2026-07-19): quando os `id` derivaram para português, o **contrato entre artefatos quebrou** — o
 > `atom-map.md` nomeava `E_REPLY`/`E_PHOTO` e o `.kg.yaml` correspondente nomeava
 > `E_RESPOSTA`/`E_FOTO`, dois artefatos do **mesmo contrato** discordando do nome do **mesmo átomo**
@@ -189,11 +189,33 @@ sem erro visível**. Evite:
 
 ## As saídas do radar (o que a ferramenta `radar` computa)
 
-1. **RADAR** — perguntas/decisões abertas ranqueadas por **atenção = impacto × confiança ×
-   centralidade** (PageRank ponderado). Responde *o que fazer agora*.
+1. **RADAR** — perguntas/decisões abertas ranqueadas por **atenção = `impact × confidence ×
+   statusFactor × (1 + grau)`**. Responde *o que fazer agora*.
+
+   > ⚠️ **CORRIGIDO em 2026-09-18, por sinal de campo de um adotante.** Este item dizia
+   > *"centralidade (PageRank ponderado)"*, e o motor nunca fez PageRank: não há iteração, nem
+   > amortecimento, nem normalização, e **o grau é NÃO-DIRECIONADO** (`kg-radar.sh:398`, `:345-347`).
+   > A diferença não é cosmética — grau não distingue *"conectado a coisas importantes"* de
+   > *"conectado a muitas coisas"*, e ordenar atenção é a função central do radar. O registro fica:
+   > apagá-lo transformaria a vitrine em propaganda.
 2. **RECONCILIAÇÃO** — todas as arestas `REFUTES`/`SUPERSEDES`: verdades confrontadas, explícitas.
-3. **INTEGRIDADE** — o grafo se contradiz? Reprova: nó `refuted` ainda recebendo `SUPPORTS`; `decision`
-   `done` fora do plane PROD; órfãos; migalhas pendentes; ciclos `DEPENDS_ON`.
+3. **INTEGRIDADE** — o grafo se contradiz? **Reprova (a lista REAL, lida do motor):** ids duplicados ·
+   aresta apontando para nó inexistente · nó órfão (grau 0) · contradição (`REFUTES` entrando em nó que
+   segue `confirmed`/`open`) · enum inválido (`node_type`/`edge_type`/`plane`/`status`/`layer`).
+
+   > ⚠️ **CORRIGIDO em 2026-09-18, e o placar anterior merece ficar registrado.** Este item prometia
+   > cinco reprovações — `refuted` recebendo `SUPPORTS`, `decision` `done` fora do plane PROD, órfãos,
+   > migalhas pendentes, ciclos `DEPENDS_ON` — e o adotante mediu, com `arquivo:linha` dos dois lados:
+   > **uma implementada** (órfãos), **três ausentes**, **uma rebaixada a aviso** (migalhas pendentes são
+   > ⚠ na seção PROVENIÊNCIA, que não reprova — o radar sai `0` com 7 avisos). Não há detecção de ciclo
+   > (`grep 'ciclo'` no motor = **0**; `A→B→A` passa com exit 0), e `SUPPORTS` aparece uma única vez no
+   > motor, dentro da string do enum.
+   >
+   > **A correção é o texto alcançar o código, nunca o contrário** — o cabeçalho do `kg-radar.sh:27-29`
+   > já trazia a lista certa, e era a KB que estava para trás. A razão de isto importar está nas
+   > palavras do próprio sinal: *"hoje a KB promete um gate que não existe, e um adotante que confie
+   > nela constrói sobre areia"*. Implementar as três ausentes é decisão em aberto, não dívida
+   > escondida — o que não se admite é a doutrina afirmar o que a máquina não faz.
 4. **RADAR-DE-DOMÍNIO** — completude da camada `domain` (⚠ atenção, **não reprova** — um
    estado-absorvente pode ser terminal legítimo; o juízo é humano). As 5 checagens (promovidas do
    dogfood de campo 2026-07-08 + ADR design):
@@ -207,6 +229,19 @@ sem erro visível**. Evite:
    `meta.baseline`) · **UNANCHORED** (`node_type: claim` com `verified_at:` sem `verified_against:` — carimbo sem alvo declarado). Ver §[Frescor e versão de schema](#frescor-e-versão-de-schema--o-radar-recusaavisa-quando-a-ssot-driftou).
 6. **SCHEMA** (`--schema`, ✗ **reprova**) — `meta.schema_version` bate com a versão que o radar entende?
    Divergência = recusa (o radar não sabe ler o arquivo); ausência = ⚠ retrocompat.
+7. **VALIDADE** (`--validade`, e também em `--all`, ⚠ atenção, **não reprova**) — o conhecimento ainda
+   vale? Lê `meta.review_after` e imprime **quatro** estados, nunca um silêncio: **VENCIDA**
+   (`review_after` < hoje) · **em dia** · **NÃO MEDIDA** (o grafo não declara o campo) · **ILEGÍVEL**
+   (declara, mas fora de `AAAA-MM-DD` — comparar string crua aprovaria `em breve` e `2026-9-8`).
+   Não muda o exit code por desenho: *"nada disso nasce bloqueando — um gate que impede trabalho é
+   contornado com `--no-verify` na primeira sexta-feira, e aí se perde o mecanismo E a informação"*.
+
+   > ⚠️ **Esta entrada existe porque a lista acima estava errada na direção OPOSTA à do resto desta
+   > seção.** A seção nasceu (2026-09-18) corrigindo a KB que prometia reprovações que o motor não
+   > faz; na mesma leva eu acrescentei ao motor uma saída que a KB não listava. **Doutrina que promete
+   > mais do que a máquina faz e máquina que faz mais do que a doutrina diz são o mesmo defeito** —
+   > o leitor não consegue prever o comportamento a partir do texto. Achado da passada adversarial
+   > do próprio PR.
 
 Saída extra `--triples` (`from EDGE to [on evento]`) para consumo por LLM.
 
@@ -499,7 +534,7 @@ opcional no fim (ADR, proposta #5 ✅):
 - `warm-up` — item 0, antes do README e da prosa dos docs;
 - `catch-up` — passo 0, **acima do git** na reconstrução de
   "onde paramos";
-- `engineer/work` — passo 0, antes do `STATE.md`/git.
+- `/onion-engineering:work` — passo 0, antes do `STATE.md`/git.
 
 Nos três, o `allowed-tools` libera `Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh*)` — a trava sem a
 permissão seria conselho outra vez.
@@ -509,12 +544,12 @@ projeção `kg state` como irmã de 1ª classe do radar, e distribuição downst
 doutrina **gated-until-trigger** deste próprio padrão: o mecanismo vem depois do uso que o prove, não
 antes.
 
-## Multi-runtime — o motor tem UMA autoridade e portas conformance-gated (absorvida do campo: onion-pessoal-app)
+## Multi-runtime — o motor tem UMA autoridade e portas conformance-gated (absorvida do campo)
 
 O validador local de `.kg.yaml` deve **DELEGAR** ao `kg-radar.sh`, nunca reimplementar a gramática —
 parser duplicado é onde o **falso-verde** volta (doutrina do local-validator, sessão 2026-07-18). Mas o
 campo achou a exceção que a regra não cobria: **um runtime onde o `.sh` não roda.** O app companheiro
-(`onion-pessoal-app`) precisa do gate de escrita **no device** — Hermes/React Native, sem bash. Delegar é
+precisa do gate de escrita **no device** — Hermes/React Native, sem bash. Delegar é
 impossível ali. A regra generalizada:
 
 > **O `kg-radar.sh` é a AUTORIDADE ÚNICA — o SSOT do motor.** Delegue quando o runtime permitir; quando ele
@@ -543,7 +578,7 @@ contrato de conformidade.** É o mesmo princípio SDAAL do resto do Onion — um
 implementações que provam conformidade ao contrato — aplicado ao motor de KG.
 
 > **O contrato de conformidade DEVE incluir o caso CAMPO-CITADO-EM-TEXTO-LIVRE** (crédito: sinal de
-> campo onion-pessoal-app, 2026-07-19 — descoberto errando: a estrela pushou um grafo quebrado).
+> campo, 2026-07-19 — descoberto errando: a estrela pushou um grafo quebrado).
 > **Histórico e estado atual:** o `kg-radar.sh` é line-based e, até 2026-07-19, casava campos por
 > **substring de linha**; um `label` cujo texto citasse um token (ex.: `label: "66 nós, TODOS
 > layer:audit, ZERO domain"`) virava configuração e produzia falso-`B_TRAP`, reprovando um grafo
@@ -598,7 +633,7 @@ self-contained (grafo interativo Cytoscape + veredito do `kg-radar.sh` embutido)
 `federation-console.sh` (zero backend, zero CDN, determinístico). Ver ≠ distribuir.
 
 **A IA que EXPLICA o grafo — narração pré-cozida** (ratificado no ADR *console rico do KG*,
-`docs/analysis/onion-adr-kg-console-rich-2026-07.md` — decisão de arquitetura core-only). O console evoluiu de
+`onion-adr-kg-console-rich-2026-07` (core-only) — decisão de arquitetura core-only). O console evoluiu de
 SVG estático para um grafo Cytoscape com **encoding epistêmico** (tamanho ∝ atenção, opacidade ∝
 confiança, borda por status, halo âmbar = stale, aresta por SUPPORTS/REFUTES⊣/SUPERSEDES⇢) e um
 **tour narrado** que conduz o leitor por atenção — a narrativa é o que torna o grafo grande legível
@@ -669,7 +704,7 @@ instância implementa com seu stack; o core permanece determinístico até a esc
 
 ## Relações
 
-- **≠ `meta:graph`**: aquele é a lente sócio-técnica da *spec-as-code* (estrutura do framework);
+- **≠ `/onion:graph`**: aquele é a lente sócio-técnica da *spec-as-code* (estrutura do framework);
   este é o grafo do *conhecimento de uma investigação* (claims/decisões/evidência). Complementares.
 - **Parentesco**: protocolo de re-teste do diário (`/onion:diary review`); doutrina de dogfood
   ([onion-dogfooding-doctrine](onion-dogfooding-doctrine.md)) — "invoque o artefato e observe" é a

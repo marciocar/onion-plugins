@@ -61,8 +61,17 @@ generativo). Independência real: nenhum lê a saída do outro.
 > **Contrato worker↔gate (importante).** A **estrutura de papéis é FIXA pela SSOT**, não pelo worker: o
 > `semantic/` (papéis → `{alias}`) e o `governance/contrast-pairs.json` (quais pares o gate verifica, por
 > **path de token**, ex. `color.on-surface.strong`/`color.surface.base`) vêm do projeto. Cada worker varia
-> **só as `foundations`** (a paleta crua), com os **nomes de foundation que o `semantic` espera**
-> (`brand.*`, `neutral.*`, `green/blue/red/amber.500`). Assim a comparação é justa (mesmos pares para todas)
+> **só as `foundations`** (a paleta crua), com os **nomes de foundation que o `semantic` DESTE projeto
+> espera** — e esses nomes se **DERIVAM**, nunca se copiam: leia os alvos de `{alias}` na camada
+> `semantic/` da SSOT e **tire o grupo raiz** antes de emitir. Os alvos vêm como
+> `{color.brand.orange}`; o que você emite é **`brand.orange`**, sem o `color.`, porque o adapter
+> (`file-to-tokens.sh`) reinsere o grupo ao aninhar em DTCG. Emitir o path inteiro produz
+> `color.color.brand.orange` e **todo alias vira órfão** — medido em 2026-09-22: 12 de 12 HARD no
+> gate. Esta frase existe porque a primeira versão da cura deste item mandava emitir o path completo
+> e reproduzia, com o prefixo trocado, exatamente o defeito que o sinal relatou. Um adotante seguiu a lista que este
+> texto trazia (`brand.*`/`neutral.*`/`green|blue|red|amber.500`) num projeto cujos foundations eram
+> `spark.*`, `area.<n>.*` e `brand.900` — sinal de campo 2026-09-07, item 2. Exemplo ILUSTRATIVO de UM
+> projeto não é contrato. Derivados os nomes certos, a comparação é justa (mesmos pares para todas)
 > e o gate não reprova por descasamento de nomenclatura. O `schema` da candidata é, portanto,
 > `{ angle, rationale, foundations }` — **não** carrega `contrast-pairs` (esses são da SSOT).
 
