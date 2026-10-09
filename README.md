@@ -24,11 +24,11 @@ claude plugin marketplace add marciocar/onion-plugins && claude plugin install o
 
 | Plugin | Categoria | Versão | Comandos | Agentes | Skills | Hooks | O que traz |
 |---|---|---|---|---|---|---|---|
-| [`onion`](plugins/onion/README.md) | core | `0.1.314` | 27 | 2 | 8 | 3 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
+| [`onion`](plugins/onion/README.md) | core | `0.1.322` | 27 | 2 | 8 | 3 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
 | [`onion-compliance`](plugins/onion-compliance/README.md) | vertical | `0.1.42` | 1 | 5 | 1 | 0 | Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK… |
 | [`onion-design`](plugins/onion-design/README.md) | vertical | `0.1.54` | 3 | 3 | 0 | 0 | Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializaca… |
-| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.135` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
-| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.86` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
+| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.140` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
+| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.89` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
 
 Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, motores KG, guardas, runtime); cada vertical acrescenta comandos e agentes de um domínio; `onion-work-tools` traz os utilitários de trabalho (censo, backlog, freshness). Cada plugin tem o seu README com o catálogo completo.
 
