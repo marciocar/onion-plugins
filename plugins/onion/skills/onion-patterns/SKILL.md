@@ -64,7 +64,7 @@ Estrutura definida pela **SSOT** — não redefina aqui: gitflow-patterns.md §C
 ### Comandos
 - Arquivo: `nome-comando.md` em kebab-case
 - Caminho de invocação: `/categoria/nome-comando` ou `/categoria:subcategoria:nome`
-- Ex: `/engineer/start`, `/product/task`, `/onion-engineering:flow feature start`, `meta:create-skill`
+- Ex: `/engineer/start`, `/product/task`, `/onion-engineering:flow feature start`, `/onion-meta:create-skill`
 
 ### Agentes
 - Arquivo: `nome-especialista.md` em kebab-case
@@ -167,10 +167,10 @@ Para Jira (`TASK_MANAGER_PROVIDER=jira`), usar **ADF** (JSON estruturado) — n�
 
 ### Criação de componentes Onion
 ```
-meta:create-agent      # novo agente especializado
-meta:create-skill      # nova skill
-meta:create-command    # novo comando
-meta:create-knowledge-base  # nova KB em docs/knowledge-base/
+/onion-meta:create-agent      # novo agente especializado
+/onion-meta:create-skill      # nova skill
+/onion-meta:create-command    # novo comando
+/onion-meta:create-knowledge-base  # nova KB em docs/knowledge-base/
 ```
 
 ## Playbooks (recognition-primed — catálogo, blip #9)

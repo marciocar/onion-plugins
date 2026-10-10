@@ -2,7 +2,7 @@
 
 Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnóstica ao provider, story points, extração de reuniões, apresentações e documentação de contexto (business/technical context, C4 + Mermaid, engenharia reversa, docs-health).
 
-**Versão** `0.1.89` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.90` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -105,19 +105,15 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `691e0f3a4eaa` |
+| tree_sha (hash do conteúdo das fontes) | `57bd6a3c4d91` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
 Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT em `.claude/` do source. Não edite à mão: a próxima montagem sobrescreve.
 
-## Comandos do core citados (não distribuídos neste plugin)
-
-Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `meta:create-knowledge-base`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
-
 ## Funciona melhor com
 
-Comandos deste plugin citam: `onion`, `onion-compliance`, `onion-engineering`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
+Comandos deste plugin citam: `onion`, `onion-compliance`, `onion-engineering`, `onion-meta`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
 
 ## Licença
 

@@ -43,7 +43,7 @@ o merge é o selo. Lote que entra no `main` ainda `pending` bloqueia o próximo 
 isso é o anti-thrashing funcionando, não defeito. (AUDIT é batch-confirm.)
 
 > ⚠️ Até 2026-10-04 este passo era **só prosa** sobre um `STATE.md` **gitignorado** que nenhum script
-> lia: num clone ou worktree novo ele passava por AUSÊNCIA (rodada do `meta:evolve`, nó
+> lia: num clone ou worktree novo ele passava por AUSÊNCIA (rodada do `/onion-meta:evolve`, nó
 > `C_CHECKPOINT_DO_DRIVE_E_SO_PROSA_E_NAO_VIAJA`). O fato durável mora no grafo, que viaja.
 
 ### P1 — Censo (determinístico)

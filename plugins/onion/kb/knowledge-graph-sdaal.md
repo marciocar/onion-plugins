@@ -8,7 +8,7 @@
 > `docs/<adopter>/graph/audit.kg.yaml`).
 >
 > **Gate (comando `/onion:kg`): ✅ CUMPRIDO em 2026-07-04** — o core dogfoodou o método na rodada
-> de `meta:evolve` (`onion-evolution-2026-07.kg.yaml` — grafo interno do core; a auditoria `meta:evolve`
+> de `/onion-meta:evolve` (`onion-evolution-2026-07.kg.yaml` — grafo interno do core; a auditoria `/onion-meta:evolve`
 > de 2026-07-04 modelada como KG, 37 nós/33 arestas, 7 refutações como arestas REFUTES) e o comando **`/onion:kg`** nasceu dessa
 > vivência, junto com o motor soberano `${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh`. A doutrina
 > gated-until-trigger foi respeitada: o comando veio DEPOIS do dogfood, não antes.
@@ -20,7 +20,7 @@
 > cartografia de contextos de domínio — sob a doutrina gated-until-trigger (registra desenho e gatilhos,
 > não autoriza construir) e soberania (cada instância implementa seu motor, não se porta o radar do adotante).
 > **F1 disparou em 2026-07-04** (1º dogfood na federação, sessão de um adotante — ver nota de doutrina abaixo)
-> e **F2 executou no mesmo dia** (dogfood do core via `meta:evolve` → `/onion:kg` + `kg-radar.sh`).
+> e **F2 executou no mesmo dia** (dogfood do core via `/onion-meta:evolve` → `/onion:kg` + `kg-radar.sh`).
 > Resta F3 (plugin `onion-investigation`), gated por maturidade de uso.
 >
 > **Camada de DOMÍNIO promovida em 2026-07-10** — 2º dogfood de campo (sinal

@@ -84,7 +84,7 @@ canônica citável. Nome sem casa é órfão — entra na tabela só quando a ca
 | **`declarado ≠ verificado`** | carimbo/doc/branch é DEV; só o artefato vivo é PROD | verify-read-path-first (tabela da família) | ✅ ativa |
 | **`fonte ≠ derivação`** | fonte e nossa leitura em artefatos **fisicamente** separados; a derivação **cita** | `source-vs-derivation.md` | ✅ ativa |
 | **PFR** *(Padrão Faseado Retomável)* | sessão durável + `STATE.md` + retomada fria; fases nunca fundidas | `onion-adr-phased-resumable-pattern-2026-06.md` (ADR interno do core — nomeia o PFR, padrão já invariante L0; provisório, PR à meta-spec diferido até gatilho) + método §2a | 🟡 ADR provisório (a cravar em `commands.md §3`) |
-| **Capability Contract** | o que um repo adotado pode esperar: Bronze/Silver/Gold — contrato **verificável** | `onion-adr-capability-contract-2026-06.md` (ADR interno do core — auto-descrição `provides/requires/loads/conformance`, tiers Bronze/Silver/Gold, validada pelo lint REGRA 20; visão-de-fora composta dos contratos, não registry à mão) + **7** `plugins/*/.claude-plugin/capability.json` | ✅ ativa — ADR **+ mecanismo** (REGRA 20 [HARD]) |
+| **Capability Contract** | o que um repo adotado pode esperar: Bronze/Silver/Gold — contrato **verificável** | `onion-adr-capability-contract-2026-06.md` (ADR interno do core — auto-descrição `provides/requires/loads/conformance`, tiers Bronze/Silver/Gold, validada pelo lint REGRA 20 (Capability Contract: tier de conformance cumprido); visão-de-fora composta dos contratos, não registry à mão) + os manifestos de vertical (`utils/marketplace/verticals/*.manifest.sh` do core) (materializados como `capability.json` em cada plugin publicado; o `plugins/` montado não é versionado no core desde a F4 das portas, 2026-10-10) | ✅ ativa — ADR **+ mecanismo** (REGRA 20 [HARD]) |
 | **Co-Evolution Protocol** *(doc-bridge)* | sinal bidirecional core↔adotante por arquivo commitado; sem runtime acoplado | `docs/evolution/README.md` (interno do core — fonte canônica do protocolo doc-bridge; maestro humano orquestra, execução do que chega é gate humano) + `/meta:co-*` | ✅ ativa |
 | **Breadcrumbs / migalhas** | sinal explícito **no artefato** que força **absorção** em vez de acomodação | `breadcrumb-patterns.md` + `/onion:diary` | ✅ ativa — 92 entradas, TTL + `conflict_class` por entrada, e o `personality-sync` F2 fez a **identidade emergir de 74 migalhas** |
 | **Object-led discovery** | o maestro dirige com o objeto; o Transformer executa com as peças certas | KB + `onion-adr-object-led-discovery-2026-07.md` (ADR interno do core — playbook espelhar→descobrir(object-led)→vestir(capability-fitting)→materializar→realimentar; "quem sabe sobre o objeto é o próprio objeto", Information Expert) | ✅ ativa |
@@ -105,7 +105,7 @@ canônica citável. Nome sem casa é órfão — entra na tabela só quando a ca
 | 4 | Compliance é silo separado do dev | Documentação ISO/SOC2 criada depois, manualmente, desconectada da entrega | 5 agentes de compliance integrados ao mesmo ciclo; `/onion-compliance:build-compliance-docs` gera a partir do estado real |
 | 5 | Orquestrações de IA são caras e trabalhosas | Escrever scripts de orquestração manuais, schemas, tiering, tratamento de falha | Skill `onion-orchestration` autora `Workflow` com tiering automático (haiku/sonnet/opus), barrier+fan-in, verificação adversarial |
 | 6 | Multi-repo sem coordenação quebra integrações | Coordenação por Slack/docs manuais, sem garantia de validação prévia | Federation v2 — topologia peer + ledger git (`publish` → `check` → `status` → `rollback`) |
-| 7 | Framework envelhece silenciosamente | Documentação e agentes ficam obsoletos sem que ninguém audite | `meta:evolve` — auto-auditoria em 10 dimensões via orquestração, backlog priorizado com evidência citada |
+| 7 | Framework envelhece silenciosamente | Documentação e agentes ficam obsoletos sem que ninguém audite | `/onion-meta:evolve` — auto-auditoria em 10 dimensões via orquestração, backlog priorizado com evidência citada |
 | 8 | Sem padrão paralelo vs sequencial | O time não sabe quando usar fan-out, sessões ou Agent Teams | KB `agent-orchestration` — tabela de decisão dos 3 substratos + fallback gracioso |
 
 *(Detalhamento "antes/depois" com prosa completa e fontes por item: material bruto §2)*
@@ -228,10 +228,10 @@ canônica citável. Nome sem casa é órfão — entra na tabela só quando a ca
 
 | Capacidade | Comando |
 |------------|---------|
-| Auto-auditoria | `meta:evolve` — 10 dimensões, orquestração, backlog priorizado |
+| Auto-auditoria | `/onion-meta:evolve` — 10 dimensões, orquestração, backlog priorizado |
 | Frescor de KBs | `/onion:kb-freshness` — veredito CURRENT/STALE/HISTORICAL |
-| Criar novo agente | `meta:create-agent` — contextualizado no ecossistema |
-| Criar novo comando | `meta:create-command` |
+| Criar novo agente | `/onion-meta:create-agent` — contextualizado no ecossistema |
+| Criar novo comando | `/onion-meta:create-command` |
 | Validar conformidade | `/onion:metaspec-validate` |
 | Inventário automático | `/onion:inventory` — SSOT gerada do filesystem |
 
@@ -246,12 +246,12 @@ canônica citável. Nome sem casa é órfão — entra na tabela só quando a ca
 **Resultado:** ciclo `register→publish→check→status→rollback` completo em produção; mudança incompatível é bloqueada com mensagem acionável, rollback coordenado restaura o estado.
 **Citação:** *"Cada Onion defende seus interesses — o repo dono valida localmente as mudanças que o afetam (conhecimento de 1ª mão)."* — `onion-federation-design-v2-2026-06.md` §2 (interno do core: design da Federation na **topologia peer + ledger git** — cada repo mantém seu Onion soberano e valida em casa as mudanças de contrato que o afetam; documenta o pivô do hub v1, que repousava num spike não-verificado)
 
-### Caso 2 — `meta:evolve`: "O Framework se Auto-Auditando"
+### Caso 2 — `/onion-meta:evolve`: "O Framework se Auto-Auditando"
 
 **Situação:** após um ciclo grande de mudanças (migração Cursor→native, federation, novos comandos), o framework não tinha auditoria formal recente.
-**O que o Onion fez:** `meta:evolve` disparou 28 agentes em 8 dimensões (peso, redundância, duplicação, KBs stale, conformidade, legado, links, frontmatter); juiz adversarial (opus) refutou 11 de 41 achados brutos.
+**O que o Onion fez:** `/onion-meta:evolve` disparou 28 agentes em 8 dimensões (peso, redundância, duplicação, KBs stale, conformidade, legado, links, frontmatter); juiz adversarial (opus) refutou 11 de 41 achados brutos.
 **Resultado:** 30 achados sobreviventes → backlog priorizado → 100% executado (8 PRs do ciclo de auto-auditoria #54-#61: sweep MCP-first, índices reconciliados, 51 comandos com `allowed-tools`, calibração de régua de frescor).
-**Citação:** *"28 agentes (8 auditores + ~19 juízes + critic) · 1.27M tokens · 635 tool-uses · ~26 min."* — `onion-evolution-2026-06-15.md` §0 (backlog de auto-auditoria do `meta:evolve`, interno do core: run real que gerou 41 achados brutos → **30 sobreviventes** após o juiz adversarial refutar 11)
+**Citação:** *"28 agentes (8 auditores + ~19 juízes + critic) · 1.27M tokens · 635 tool-uses · ~26 min."* — `onion-evolution-2026-06-15.md` §0 (backlog de auto-auditoria do `/onion-meta:evolve`, interno do core: run real que gerou 41 achados brutos → **30 sobreviventes** após o juiz adversarial refutar 11)
 
 ### Caso 3 — Agent Teams: "Decidindo Não Adotar (Com Evidência)"
 
@@ -294,10 +294,10 @@ canônica citável. Nome sem casa é órfão — entra na tabela só quando a ca
 | Knowledge Bases | depende do papel — ver a SSOT | `docs/onion/inventory.md` (SSOT gerada) |
 | Task Manager providers suportados | 4 (Jira, ClickUp, Asana, Linear) | `CLAUDE.md` §Task Manager |
 | PRs na jornada completa de auto-evolução (Agent Teams + Federation + Evolve) | 22 | ⚠️ **não-verificável** — a fonte (`.claude/sessions/INDEX.md`) é **gitignored**; número congelado-no-tempo, sem como re-medir |
-| Workers no `meta:evolve` | 28 agentes | onion-evolution-2026-06-15.md §0 |
-| Tokens no `meta:evolve` | 1.27M | onion-evolution-2026-06-15.md §0 |
-| Tool-uses no `meta:evolve` | 635 | onion-evolution-2026-06-15.md §0 |
-| Duração do `meta:evolve` | ~26 min | onion-evolution-2026-06-15.md §0 |
+| Workers no `/onion-meta:evolve` | 28 agentes | onion-evolution-2026-06-15.md §0 |
+| Tokens no `/onion-meta:evolve` | 1.27M | onion-evolution-2026-06-15.md §0 |
+| Tool-uses no `/onion-meta:evolve` | 635 | onion-evolution-2026-06-15.md §0 |
+| Duração do `/onion-meta:evolve` | ~26 min | onion-evolution-2026-06-15.md §0 |
 | Achados D1 (peso/tamanho) | 0 outliers | onion-evolution-2026-06-15.md §2 — "framework dentro dos limites" |
 | Agentes migrados Cursor→native | 49/49 (100%) | sessions archives jun/2026 |
 | Comandos com `allowed-tools` após D8 | 82/82 (100%) | PR #60 |
@@ -313,7 +313,7 @@ canônica citável. Nome sem casa é órfão — entra na tabela só quando a ca
 > **Manutenção (anti-redrift):** as contagens de inventário **presentes** (comandos/agentes/skills/KBs/dimensões)
 > são derivadas da SSOT gerada `docs/onion/inventory.md` (interna do core — contagens de comandos/agentes/skills/KBs computadas do filesystem por `${CLAUDE_PLUGIN_ROOT}/validation/inventory.sh`, validadas no CI, nunca digitadas à mão)
 > — ao resync, leia a SSOT, nunca reescreva de memória. Os números **dentro dos Casos de Uso (§5)** e das
-> métricas de run específico (tokens/agentes/duração do `meta:evolve` de 2026-06-15) são **congelados-no-tempo**:
+> métricas de run específico (tokens/agentes/duração do `/onion-meta:evolve` de 2026-06-15) são **congelados-no-tempo**:
 > descrevem um evento histórico e **não** se atualizam com o inventário. Family [`declarado ≠ verificado`](#15-invenções-nomeadas--o-catálogo-canônico).
 
 ---
@@ -370,7 +370,7 @@ grafo: `docs/onion/graph/onion-identity-2026-07.kg.yaml` → `C_CORE_NAO_E_FAMIL
 | Compliance | Não existe | ISO 27001, SOC2, PMBOK, ISO 22301 integrados |
 | Orquestração | Manual, caso a caso | workflows + agentes + skills (contagem na SSOT gerada) |
 | Multi-repo | Não existe | Federation v2 com topologia peer |
-| Auto-evolução | Não existe | `meta:evolve` audita 10 dimensões |
+| Auto-evolução | Não existe | `/onion-meta:evolve` audita 10 dimensões |
 | Sessions retomáveis | Não existe | `STATE.md` + worklog persistente |
 | Abstração de integração | Não existe | SDAAL (Task Manager + Forge) |
 
@@ -394,13 +394,13 @@ Não. O Onion vive inteiramente em `.claude/` — código, linguagem, framework 
 Sim, para Jira, ClickUp, Asana ou Linear — basta definir `TASK_MANAGER_PROVIDER` no `.env`. Sem provider, o modo `none` permite uso offline com decomposição local.
 
 **Precisa de plano Claude Code pago?**
-O Onion usa o Claude Code como plataforma. Orquestrações pesadas (ex.: `meta:evolve` ≈ 1.27M tokens numa auditoria completa) favorecem planos com mais headroom; uso moderado funciona em planos menores.
+O Onion usa o Claude Code como plataforma. Orquestrações pesadas (ex.: `/onion-meta:evolve` ≈ 1.27M tokens numa auditoria completa) favorecem planos com mais headroom; uso moderado funciona em planos menores.
 
 **O Onion substitui o GitFlow?**
 Não — complementa. `/engineer:*` e `/git:*` são orientados pelo motor GitFlow (`gitflow-patterns.md`); o Onion adiciona sessões retomáveis, gates de qualidade e integração com task manager por cima.
 
 **O que acontece se o Claude Code lançar uma feature incompatível?**
-O framework tem meta-specs L0 e `meta:evolve` para auto-auditoria — mudanças de plataforma geram achados D6 (legado/modernização) que o mantenedor executa. A migração Cursor→native em 49 agentes é um exemplo real.
+O framework tem meta-specs L0 e `/onion-meta:evolve` para auto-auditoria — mudanças de plataforma geram achados D6 (legado/modernização) que o mantenedor executa. A migração Cursor→native em 49 agentes é um exemplo real.
 
 **Funciona em projetos legados sem testes?**
 Sim — projetado para "qualquer projeto (novo, legado ou regulado)". Os agentes `/test:*` e `@branch-test-planner` ajudam a estabelecer cobertura onde não existe.
@@ -417,7 +417,7 @@ Não. São complementares: `Workflow` = orquestração determinística de forma 
 **O Onion funciona com monorepo?**
 Sim — `@nx-monorepo-specialist` e `@nx-migration-specialist` são especializados em NX, validados em repositórios NX reais.
 
-**O que é o `meta:evolve` e por que é relevante?**
+**O que é o `/onion-meta:evolve` e por que é relevante?**
 A auto-auditoria do framework: dispara uma orquestração em 10 dimensões (peso, redundância, duplicação, KBs stale, conformidade, legado, links, frontmatter, frescor de contexto, frescor de memória) e produz backlog priorizado com evidência `arquivo:linha`. O framework se diagnostica periodicamente sem revisão manual artefato-a-artefato.
 
 **Como funciona a integração de compliance?**
@@ -519,4 +519,4 @@ comandos e a tabela §6 dizia 99); §3, §6 e §7 passaram a derivar da mesma SS
 
 Casos históricos §5 seguem **intactos** como congelados-no-tempo. SSOT da doutrina:
 `docs/onion/graph/onion-identity-2026-07.kg.yaml`.
-**Mantido por**: Sistema Onion (síntese — gerada via `meta:create-knowledge-base`, Fase 3 do plano de materiais externos)
+**Mantido por**: Sistema Onion (síntese — gerada via `/onion-meta:create-knowledge-base`, Fase 3 do plano de materiais externos)

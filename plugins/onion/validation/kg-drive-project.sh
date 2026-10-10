@@ -30,7 +30,7 @@
 #             `meta.x_drive_checkpoint: pending|sealed` (+ `meta.x_drive_checkpoint_note:`). Antes ele
 #             vivia só no `.claude/sessions/<slug>/STATE.md`, que é GITIGNORADO e que NENHUM script
 #             lia: o anti-thrashing existia só na máquina onde foi escrito e só como prosa — num
-#             clone ou worktree novo o P0.5 passava por AUSÊNCIA (rodada do meta:evolve de
+#             clone ou worktree novo o P0.5 passava por AUSÊNCIA (rodada do /onion-meta:evolve de
 #             2026-10-04, nó C_CHECKPOINT_DO_DRIVE_E_SO_PROSA_E_NAO_VIAJA). Pendente vence
 #             qualquer outro veredito: é o passo ANTERIOR ao censo.
 # =============================================================================

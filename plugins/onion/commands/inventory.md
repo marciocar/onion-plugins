@@ -22,7 +22,7 @@ e nos guias **derivam** deste inventário, não o contradizem.
 > entropizam a cada recurso criado. A SSOT + o guard de lint
 > (`check_inventory_sync` em `lint-artifacts.sh`) tornam o drift **impossível de
 > mergear** — é o braço de **auto-evolução** do framework. Relacionado:
-> `/onion-product:build-index` (navegação de `docs/`) e `meta:evolve` D8 (reporta drift).
+> `/onion-product:build-index` (navegação de `docs/`) e `/onion-meta:evolve` D8 (reporta drift).
 
 ## ⚡ Execução
 
@@ -92,4 +92,4 @@ material derivado) — reconcilie à mão, ou um recurso mudou após o Passo 1 (
 
 - SSOT: `${CLAUDE_PLUGIN_ROOT}/validation/inventory.sh` · Artefato: `docs/onion/inventory.md`
 - Guard: `${CLAUDE_PLUGIN_ROOT}/validation/lint-artifacts.sh` (Regra 8 — `check_inventory_sync`)
-- Relacionados: `/onion-product:build-index`, `meta:evolve` (D8), `/onion:kb-freshness`
+- Relacionados: `/onion-product:build-index`, `/onion-meta:evolve` (D8), `/onion:kb-freshness`

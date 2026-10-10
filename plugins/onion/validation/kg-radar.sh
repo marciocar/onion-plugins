@@ -32,7 +32,8 @@
 #                     RULE-sem-trace · fonte-única (>1 READS saindo — ADR design-extends-kg)
 #   PROVENIÊNCIA    = decisão ancorada em origem (⚠ atenção, NÃO reprova — completude da camada
 #                     audit): decisão VIVA sem NENHUMA proveniência (nem aresta TRACES_TO nem
-#                     campo `trace:` inline `arquivo:linha`). Reconciliada (superseded/refuted)
+#                     campo `trace:` inline `arquivo:linha`, nem `provenance.source` — contrato
+#                     v4.1, SAC-96). Reconciliada (superseded/refuted)
 #                     é história — não cobrada (mesmo racional do FRESCOR).
 #   FRESCOR         = frescor da SSOT (⚠ atenção, NÃO reprova — nó stale mente, não corrompe):
 #                     STALE-MISSING (nó plane:PROD sem verified_at:) · STALE-OLD (verified_at
@@ -40,7 +41,9 @@
 #                     mas SEM verified_against: — carimbo sem alvo declarado; os demais tipos
 #                     ancoram por trace:/TRACES_TO e não são cobrados) · MISPLANED (plane:PROD
 #                     com verified_against: branch|commit — o nó afirma sobre o VIVO e declara
-#                     ter olhado a FONTE; contradição interna, vale p/ TODOS os tipos).
+#                     ter olhado a FONTE; contradição interna, vale p/ TODOS os tipos), e
+#                     plane:PROD com base em relato (`evidence_class: testimony` ou
+#                     `provenance.method: testemunho: …` — contrato v4.1, SAC-96).
 #                     Determinístico: compara duas datas / dois campos do arquivo, sem "agora"
 #                     (ADR onion-adr-kg-freshness-gate, proposta #2 (dogfood de campo)).
 #   SCHEMA          = versão de schema (✗ REPROVA na divergência — radar não sabe ler o arquivo):
@@ -218,6 +221,23 @@ BEGIN { section = ""; nid = ""; ne = 0; metaClosed = 0; metaFieldIndent = -1 }
 /^nodes:/ { section = "nodes"; metaClosed = 1; next }
 /^edges:/ { section = "edges"; nid = ""; metaClosed = 1; next }
 /^meta:/  { section = "meta"; next }
+# ARESTA PARA NÓ DE OUTRO GRAFO (contrato v4.3, 2026-10-10, SAC-98): `external_edges:` no topo, uma
+# aresta por item, exatamente uma ponta externa `<caminho>#<id>` (a outra é um nó daqui; `from` ausente
+# = o grafo inteiro). Este radar é de UM arquivo: não confere a ponta externa (é o gate do contrato que
+# a confere contra o corpus, integrity.dangling-external). Lê a ponta LOCAL, porque ela conta como
+# ligação (nó ligado só por aresta externa NÃO é órfão) e porque ponta local inexistente é integridade
+# deste arquivo. Sem esta seção o bloco caía na seção anterior: depois de `edges:`, um `- from:` externo
+# virava aresta intra-arquivo pendurada e o `edge_type:` do item sobrescrevia o da última aresta.
+/^external_edges:/ { section = "external"; nid = ""; metaClosed = 1; next }
+section == "external" && /^[[:space:]]+-[[:space:]]/ { nx++ }
+section == "external" && /^[[:space:]]+(-[[:space:]]+)?(from|to):/ {
+  v = $0; sub(/^[[:space:]]+(-[[:space:]]+)?/, "", v)
+  xk = v; sub(/:.*/, "", xk); sub(/^(from|to):/, "", v); v = trim(v)
+  if (v !~ /#/) { xlocal[nx] = v; xlocalKey[nx] = xk }
+  next
+}
+section == "external" && /^[[:space:]]+(-[[:space:]]+)?edge_type:/ { v = $0; sub(/^[[:space:]]+(-[[:space:]]+)?edge_type:/, "", v); xtype[nx] = trim(v); next }
+section == "external" { next }
 
 # Legibilidade da gramática (guarda anti-fail-open — sinal de campo 2026-07-17): conta as
 # linhas COM conteúdo dentro de nodes:. Se a seção tem conteúdo e mesmo assim o parser não extrai
@@ -232,6 +252,7 @@ section == "nodes" && /^[[:space:]]+- id:/ {
   # Indentação dos CAMPOS deste nó = a do traço + 2 (é onde o `id:` vive). Só chave nesta coluna
   # conta como chave do nó: texto de bloco (`>-`) e mapas aninhados ficam mais à direita.
   match($0, /-/); fieldIndent = RSTART + 1
+  inProv = 0; provIndent = -1
   next
 }
 section == "nodes" && nid != "" {
@@ -248,6 +269,25 @@ section == "nodes" && nid != "" {
       _k = substr($0, _ind + 1); sub(/:.*/, "", _k)
       if ((nid "|" _k) in nodeKeySeen) { if (!((nid "|" _k) in dupKey)) dupKey[nid "|" _k] = "linhas " nodeKeySeen[nid "|" _k] " e " NR }
       else nodeKeySeen[nid "|" _k] = NR
+    }
+  }
+  # ── PROVENANCE (bloco ANINHADO, contrato v4.1 — SAC-96, 2026-10-09) ─────────────────────────────
+  # O contrato lê dois campos de dentro do bloco que este radar ignorava: `provenance.method` da
+  # classe `testemunho:` em PROD alerta integrity.testimony-in-prod (aqui: MISPLANED), e a decision
+  # com `provenance` já tem origem (não alerta integrity.untraced-decision). Os dois avisos do radar
+  # liam só `evidence_class` e `trace:`/TRACES_TO, e divergiam do contrato em ~256 nós e 9 decisões.
+  # Leitura POSICIONAL, como a chave repetida acima: o bloco abre com `provenance:` SEM valor na
+  # coluna dos campos do nó, e só vale chave na coluna do 1º filho. Um `method:` em outro mapa
+  # aninhado, ou num texto de bloco, fica de fora. Lê de $0 (não de `line`): a fonte pode ter `#`.
+  if ($0 !~ /^[[:space:]]*$/) {
+    _pi = match($0, /[^ ]/) - 1
+    if (_pi <= fieldIndent) { inProv = (_pi == fieldIndent && line ~ /^ *provenance:[[:space:]]*$/); provIndent = -1 }
+    else if (inProv) {
+      if (provIndent < 0) provIndent = _pi
+      if (_pi == provIndent) {
+        if ($0 ~ /^ *source:/) { v = $0; sub(/^ *source:/, "", v); provSource[nid] = trim(v) }
+        if ($0 ~ /^ *method:/) { v = $0; sub(/^ *method:/, "", v); provMethod[nid] = trim(v) }
+      }
     }
   }
   # ── CAMPO SÓ EM POSIÇÃO DE CAMPO (âncora ^[[:space:]]*<campo>:) ──────────────────────────────
@@ -413,6 +453,7 @@ section == "meta" && metaClosed == 0 && /^[[:space:]]+target:/ {
 END {
   VN = "entity claim decision question evidence artifact state event rule invariant policy"
   VE = "SUPPORTS REFUTES SUPERSEDES CAUSES DEPENDS_ON TRACES_TO HAS_STATE TRANSITIONS EMITS CONSTRAINS READS WRITES"
+  VX = " SUPERSEDES CONSTRAINS SUPPORTS REFUTES TRACES_TO DEPENDS_ON "   # external_edges (contrato v4.3): lista fechada, casamento por palavra inteira
   VP = "DEV PROD"
   VL = "audit domain"
   problems = 0
@@ -473,6 +514,9 @@ END {
     if (eon[i] != "")              { onUsed[eon[i]] = 1; deg[eon[i]]++ }  # trigger: (ou on: legado) conecta o evento (não é órfão)
     outDeg[efrom[i]]++
   }
+  # a ponta local de uma aresta externa conta como ligação (contrato v4.3): sem isto, um nó ligado só
+  # a outro grafo saía "órfão (grau 0)" num grafo que o contrato aprova
+  for (i = 1; i <= nx; i++) if (xlocal[i] != "") deg[xlocal[i]]++
 
   if (mode == "--triples") {
     for (i = 1; i <= ne; i++) {
@@ -721,7 +765,7 @@ END {
     }
     if (found && swarn == 0) print "  ✅ nenhum alvo de SUPERSEDES ficou por reconciliar"
 
-    # ⚠ DECISÃO `done` EM DEV (2026-10-06, sinal de campo onion-slm, operador MU-18): a gramática diz que
+    # ⚠ DECISÃO `done` EM DEV (2026-10-06, sinal de campo de um adotante, operador MU-18): a gramática diz que
     # `decision` só vira `done` verificada em PROD, e o motor só rebaixava a atenção (DEV/done = 0,5), sem
     # aviso — 20 de 20 mutações passaram caladas. ⚠ AGREGADO, não um por nó: o corpus tem 95 casos em 36
     # grafos, e 95 linhas por leitura ensinariam a ignorar o aviso. Não reprova (`problems` intocado).
@@ -901,8 +945,11 @@ END {
       # 2026-07-17). A guarda mira a decisão VIVA sem chão.
       if (nstatus[id] == "superseded" || nstatus[id] == "refuted") continue
       ndec++
-      if (traceOut[id] == 0 && traceInline[id] == "") {
-        print "  ⚠ decisão-sem-proveniência: " id " (sem aresta TRACES_TO nem campo trace: inline — origem não ancorada)"; pwarns++
+      # A `provenance` estruturada (source não vazio) também é origem — é o que o contrato v4.1 diz
+      # em integrity.untraced-decision ("sem trace, sem provenance e sem TRACES_TO"). Antes do
+      # SAC-96 (2026-10-09) o radar cobrava 9 decisões de 4 grafos que já declaravam a fonte.
+      if (traceOut[id] == 0 && traceInline[id] == "" && provSource[id] == "") {
+        print "  ⚠ decisão-sem-proveniência: " id " (sem aresta TRACES_TO, sem campo trace: inline e sem provenance.source — origem não ancorada)"; pwarns++
       }
     }
     if (ndec == 0) print "  (nenhuma decisão viva no grafo — nada a verificar)"
@@ -920,7 +967,7 @@ END {
     } else {
       print "  ✅ schema_version " metaSchema " (bate com o radar)"
     }
-    # MULTI-DOCUMENTO (2026-10-06, sinal de campo onion-slm): este radar lê linha a linha e aceita
+    # MULTI-DOCUMENTO (2026-10-06, sinal de campo de um adotante): este radar lê linha a linha e aceita
     # `---` no meio do arquivo; o kg-drive-project.sh e o kg-realign-project.sh usam parser YAML de
     # documento ÚNICO e recusam (exit 2). Aviso, não reprova: o arquivo é legível AQUI.
     if (docSeps >= 2) {
@@ -994,6 +1041,14 @@ END {
       # artefato vivo"; relato não cruza com artefato nenhum.
       if (eclass[id] == "testimony" && plane[id] == "PROD") {
         print "  ⚠ MISPLANED: " id " (plane:PROD mas evidence_class: testimony — relato não é artefato vivo; reclassifique para plane:DEV)"; fwarns++
+      }
+      # A MESMA contradição declarada pelo OUTRO campo (contrato v4.1, integrity.testimony-in-prod):
+      # `provenance.method` da classe `testemunho:` diz que a base do nó é relato. Até o SAC-96
+      # (2026-10-09) o radar só via o `evidence_class`, e ~125 nós PROD com método de testemunho
+      # passavam calados enquanto o contrato os acusava. `else`: um nó com os DOIS marcadores é UM
+      # aviso, não dois.
+      else if (plane[id] == "PROD" && provMethod[id] ~ /^testemunho:/) {
+        print "  ⚠ MISPLANED: " id " (plane:PROD mas provenance.method: testemunho — relato não é artefato vivo; reclassifique para plane:DEV)"; fwarns++
       }
       # MISPLANED — CONTRADIÇÃO INTERNA ao próprio nó, e vale para TODOS os tipos.
       # `plane: PROD` afirma "cruzei com o ARTEFATO VIVO"; `verified_against: branch|commit`
@@ -1079,6 +1134,13 @@ END {
       }
       # `on:` LEGADO: lido, nunca reprovado (grafo antigo fora do corpus não quebra), sempre dito.
       if (eonLegacy[i]) print "  ⚠ ON-LEGADO aresta " i " (" efrom[i] " -> " eto[i] "): o gatilho usa a chave on:, que YAML 1.1 lê como booleano — renomeie para trigger: " eon[i]
+    }
+    # aresta externa: só a ponta LOCAL se decide aqui (a externa é do gate, contra o corpus)
+    for (i = 1; i <= nx; i++) {
+      if (xlocal[i] != "" && !(xlocal[i] in nodeSeen)) {
+        if (isProposal) { dangling++ } else { print "  ✗ external_edges " i ": " xlocalKey[i] " aponta nó inexistente: " xlocal[i]; problems++ }
+      }
+      if (index(VX, " " xtype[i] " ") == 0 || xtype[i] == "") { print "  ✗ external_edges " i ": edge_type fora da lista do contrato v4.3: [" xtype[i] "]"; problems++ }
     }
     for (i = 1; i <= nn; i++) {
       id = order[i]

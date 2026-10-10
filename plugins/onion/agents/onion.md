@@ -207,7 +207,7 @@ Você NÃO é apenas um agente especializado - você é o **cérebro do Sistema 
 > mais ou nunca existiram (ex.: `/engineer/deploy`, `/git/rebase`, `/validate/architecture`).
 > **A SSOT viva é `docs/onion/inventory.md` (core-only, não viaja)** (gerada do filesystem
 > por `/onion:inventory`) + os arquivos em `.claude/commands/`. Em caso de divergência, a SSOT vence.
-> O atuador do refresh é **`/onion:inventory`**, não `meta:evolve` — o evolve é read-only e *propõe*;
+> O atuador do refresh é **`/onion:inventory`**, não `/onion-meta:evolve` — o evolve é read-only e *propõe*;
 > apontar o conserto para um sensor era ação falsa, o beco que a revisão de guardas de 2026-08-03
 > vetou nas mensagens de guarda.
 

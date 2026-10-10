@@ -16,7 +16,7 @@
 | **Data de Criação** | 2026-06-22 |
 | **Última Atualização** | 2026-07-17 |
 | **Categoria** | Conceitos |
-| **Comando relacionado** | `meta:evolve` (sensor) · gate mecânico em `${CLAUDE_PLUGIN_ROOT}/validation/` |
+| **Comando relacionado** | `/onion-meta:evolve` (sensor) · gate mecânico em `${CLAUDE_PLUGIN_ROOT}/validation/` |
 | **Padrão-irmão** | Doutrina de Modernização |
 | **Padrão-parente** | [Knowledge Graph SDAAL](knowledge-graph-sdaal.md) — o KG é o SSOT que o loop lê antes e escreve depois (§♻️ e §Onde se encaixa) · `/onion:diary` — o re-teste de migalha é o "re-" em outra roupa |
 
@@ -123,7 +123,7 @@ O dogfooding é o **fechamento empírico** do loop que a Doutrina de Modernizaç
 ```
 KG-first (se houver .kg.yaml)→ read(KG): o grafo é o SSOT de estado, ACIMA do git/memória
         ↓ drive-to-verify: claim PROD de alto impacto → cruzar contra o vivo antes de agir
-meta:evolve (sensor)        → audita, propõe backlog (read-only)
+/onion-meta:evolve (sensor)        → audita, propõe backlog (read-only)
         ↓ cada item cita uma regra de DECISÃO (modernization-doctrine)
 /meta:create-* (atuadores)   → geram/enxugam o artefato
         ↓
@@ -133,7 +133,7 @@ DOGFOOD (esta doutrina)      → roda de verdade → aprende → resolve no mesm
    ├─ gate mecânico: lint + selftest + inventory (determinístico)
    └─ gate de uso: invoca o artefato; testa modo-de-falha; verificação adversarial
         ↓ write(KG): o que o dogfood descobriu volta como nó/aresta (REFUTES/SUPERSEDES)
-        ↺ fix → re-dogfood até passar; findings de campo (upstream) realimentam meta:evolve
+        ↺ fix → re-dogfood até passar; findings de campo (upstream) realimentam /onion-meta:evolve
 ```
 
 **O KG fecha o loop nas duas pontas** ([knowledge-graph-sdaal §SSOT-as-runtime](knowledge-graph-sdaal.md#ssot-as-runtime--o-kg-é-o-primeiro-ato-mecanismo-não-conselho)):

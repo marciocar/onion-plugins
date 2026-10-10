@@ -24,7 +24,13 @@ o movimento à mão — nunca invente a lista.
 ## O fluxo (progressive disclosure — 3 críticas + avançado)
 
 ### 1. Orient (contexto — sem perguntar ainda)
-- Papel deste repo: `bash ${CLAUDE_PLUGIN_ROOT}/validation/onion-version.sh | grep '^role:'` (`source` | `hub` | `adopted`).
+- Papel deste repo: `bash ${CLAUDE_PLUGIN_ROOT}/validation/onion-version.sh | grep '^role:'` (`source` | `hub` | `adopted`, ou
+  um papel de porta: `standalone` | `plugins` | `mini`).
+- **Papel sem adoção (`standalone`, `plugins`, `mini`):** adotar, promover, atualizar, convidar e
+  transferir **não existem aqui** — o motor não viaja para esses papéis. Diga isso e aponte o `onion-core`;
+  não ensine as fases à mão. Numa porta a projeção costuma nem rodar (sai 3: o grafo da topologia não
+  viaja); onde roda, ela já omite essas transições e diz quantas no stderr. Nos dois casos a resposta é
+  a mesma: o movimento não é deste papel.
 - Movimentos ativos: as linhas `confirmed` da projeção. Os `open` são **gated** ("em breve" — não execute;
   aponte o caminho manual da doutrina se perguntado).
 - **Regra de validade por papel** (diga, não deixe o maestro descobrir errando):
@@ -51,10 +57,11 @@ Após confirmação explícita, **execute o `trace` da transição**, não uma c
   (create/adopt/update), ou o bloco `--promote-hub` para a promoção.
 - O comando faz as fases (cópia/config/stamp/commit durável). Você é o intake guiado, ele é o motor.
 
-> ⚠️ **A transição `adopt` só existe onde a META-FÁBRICA existe.** Num alvo de papel `standalone` ela
-> é selada por desenho, e o comando **não está lá** — esta skill segue útil para as outras transições
-> e para o intake, mas não invente o motor ausente: se `meta:adopt` não resolver, diga que o papel
-> não o recebe, em vez de tentar reproduzir as fases à mão.
+> ⚠️ **A transição `adopt` só existe onde a ADOÇÃO existe** (source e hub). Desde a matriz das portas
+> (2026-10-09) o `standalone` e o `plugins` levam a meta-fábrica, mas não a adoção nem a federação; o
+> `mini` não leva nenhuma das duas. Nesses papéis o comando **não está lá**, e a projeção já não oferece
+> o movimento — não invente o motor ausente: se `meta:adopt` não resolver, diga que o papel não o
+> recebe, em vez de tentar reproduzir as fases à mão.
 > (A 1ª redação citava o caminho do arquivo do comando em backtick — grafado aqui sem crase de
 > propósito, para esta nota não recriar o ponteiro que ela explica. Ele é EXCLUÍDO do
 > papel `standalone` pelo mesmo manifesto que distribui esta skill, então virava ponteiro morto lá —

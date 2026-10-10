@@ -97,10 +97,10 @@ Branch atual:
 ### Criar Componentes do Onion
 | Intenção | Comando |
 |----------|---------|
-| Novo agente especializado | `meta:create-agent` |
-| Novo skill | `meta:create-skill` |
-| Novo comando | `meta:create-command` |
-| Nova knowledge base | `meta:create-knowledge-base` |
+| Novo agente especializado | `/onion-meta:create-agent` |
+| Novo skill | `/onion-meta:create-skill` |
+| Novo comando | `/onion-meta:create-command` |
+| Nova knowledge base | `/onion-meta:create-knowledge-base` |
 | Configurar integração (task manager, APIs) | `/onion:setup-integration` |
 | Análise de problema complexo | `/onion:analyze-complex-problem` |
 | Orquestrar subagentes (fan-out paralelo) | `/onion:orchestrate` (skill `onion-orchestration`) |
@@ -127,9 +127,9 @@ Branch atual:
 ### Auto-Evolução do Framework
 | Intenção | Comando / KB |
 |----------|--------------|
-| "Auditar o Onion", "como melhoro o framework?", "está desatualizado/pesado?" | `meta:evolve` (orquestração, read-only → backlog priorizado) |
+| "Auditar o Onion", "como melhoro o framework?", "está desatualizado/pesado?" | `/onion-meta:evolve` (orquestração, read-only → backlog priorizado) |
 | Qual padrão de refatoração aplicar (consolidar/adapter/KB/skill/fan-out) | KB `onion-modernization-doctrine` |
-| Frescor de KBs · conformidade meta-spec | `/onion:kb-freshness` · `/onion:metaspec-validate` (compostos pelo `meta:evolve`) |
+| Frescor de KBs · conformidade meta-spec | `/onion:kb-freshness` · `/onion:metaspec-validate` (compostos pelo `/onion-meta:evolve`) |
 
 ---
 

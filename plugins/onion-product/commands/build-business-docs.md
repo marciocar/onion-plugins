@@ -22,7 +22,7 @@ output_path: docs/business-context/
 
 related_commands:
   - /onion-product:build-tech-docs
-  - meta:create-knowledge-base
+  - /onion-meta:create-knowledge-base
   - /onion-product:build-index
 
 related_agents:

@@ -11,7 +11,7 @@ updated: "2026-07-18"
 allowed-tools: Read Write Grep Glob Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh*)
 argument-hint: "<tarefa a paralelizar>"
 related_commands:
-  - meta:create-agent
+  - /onion-meta:create-agent
   - /onion:metaspec-validate
 related_agents:
   - onion

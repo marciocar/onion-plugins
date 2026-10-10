@@ -6,7 +6,7 @@ description: |
   e, na camada `layer: domain`, o SSOT de domínio (entity/state/event/rule/policy) que o audit TRACES_TO.
   Roda o radar determinístico (kg-radar.sh) para atenção, reconciliação, integridade e radar-de-domínio.
   Modo `map <área>`: PFR de mapeamento completo (inventário → atom-map/fatias → .kg.yaml → radar).
-  Nascido do 1º dogfood do core (auditoria meta:evolve 2026-07-04) — F2 da vertical onion-investigation.
+  Nascido do 1º dogfood do core (auditoria /onion-meta:evolve 2026-07-04) — F2 da vertical onion-investigation.
 category: meta
 tags: [kg, knowledge-graph, investigation, sdaal, radar, reconciliation, domain-layer]
 version: "1.4.0"
@@ -14,9 +14,9 @@ updated: "2026-07-21"
 allowed-tools: Read Write Edit Grep Glob Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-radar.sh*) Bash(bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-provenance-coverage.sh*) Bash(ls docs/*)
 argument-hint: "[<arquivo.kg.yaml> | novo <slug> | map <área> | diagnose <slug> | backfill [<escopo>]]  (vazio = localizar .kg.yaml existente e rodar radar)"
 related_commands:
-  - meta:evolve
+  - /onion-meta:evolve
   - /onion:graph
-  - /onion:co-evolve
+  - meta:co-evolve
 related_agents:
   - research-agent
   - onion
@@ -36,7 +36,7 @@ impressão do modelo.
 
 ## 🟢 Quando usar
 
-- Auditoria/investigação com **muitos achados que se relacionam** (ex.: rodada de `meta:evolve`,
+- Auditoria/investigação com **muitos achados que se relacionam** (ex.: rodada de `/onion-meta:evolve`,
   auditoria de produção, reconciliação entre linhagens/branches).
 - Quando houver **refutações**: achados plausíveis que caíram sob verificação merecem aresta
   `REFUTES` explícita, não deleção (história reconcilia, não apaga).
@@ -488,7 +488,7 @@ Antes de qualquer projeção cruzar fronteira (material pro cliente, sinal pro c
 
 ## ⚠️ Notas
 
-- **Grafo primeiro, relatório depois** (contrato para os consumidores): `meta:evolve`,
+- **Grafo primeiro, relatório depois** (contrato para os consumidores): `/onion-meta:evolve`,
   `/onion:kb-freshness` e `/onion:context-freshness` — e qualquer comando que produza achados
   estruturados — materializam aqui **antes** de renderizar seu relatório final; o markdown é
   **projeção** do `.kg.yaml`, nunca fonte paralela. Senão o grafo vira predecessor da avaliação em

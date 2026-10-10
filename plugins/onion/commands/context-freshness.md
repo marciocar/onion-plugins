@@ -15,7 +15,7 @@ allowed-tools: Read Grep Glob
 argument-hint: "[caminho/glob de contexto específico | vazio = os 3 contextos]"
 related_commands:
   - /onion:kb-freshness
-  - meta:evolve
+  - /onion-meta:evolve
   - /onion-product:build-business-docs
   - /onion-product:build-tech-docs
   - /onion-compliance:build-compliance-docs
@@ -53,7 +53,7 @@ ao alvo `docs/*-context/`.
 - Após mudança grande no produto/código/regulação (pivot, refactor, novo
   framework de compliance) — para flagar o contexto que ficou para trás.
 - Antes de confiar num contexto para uma decisão importante (gate de confiança).
-- Composto pelo `meta:evolve` (dimensão D9) numa auditoria ampla.
+- Composto pelo `/onion-meta:evolve` (dimensão D9) numa auditoria ampla.
 
 ---
 
@@ -210,9 +210,9 @@ CONTEXT FRESHNESS REPORT — AAAA-MM-DD
 - **Orquestração opt-in**: alvo único → executa direto com `Agent` (sem overhead de Workflow).
 - Orquestre **sempre no nível principal** — nunca dentro de subagente; **não crie** um
   agente "context-freshness-worker".
-- **Contrato de composição (D9 do `meta:evolve`)**: quando invocado por `meta:evolve`,
+- **Contrato de composição (D9 do `/onion-meta:evolve`)**: quando invocado por `/onion-meta:evolve`,
   retorne o **array `FreshnessSchema[]` cru** (não só o relatório Unicode), para o
-  `evolve` mesclar no backlog. `meta:evolve` chama no **fluxo principal** e ingere o
+  `evolve` mesclar no backlog. `/onion-meta:evolve` chama no **fluxo principal** e ingere o
   array — nunca aninha esta orquestração dentro da dele (mesma regra do D4/`kb-freshness`).
 
 ---

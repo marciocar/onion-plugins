@@ -38,7 +38,7 @@ As **duas camadas** (a única taxonomia de grafo já canônica antes deste doc):
   epistêmico "limita sem derrubar" (a objeção sobrevivente; dissent que MATA é `REFUTES`).
   > **Por que `CONSTRAINS` está nas duas camadas (2026-10-06).** Esta lista o punha só em `domain`, e a
   > própria `kg-grammar.md` mandava usá-lo em audit para a objeção que limita. O corpus seguiu a gramática:
-  > das 777 arestas `CONSTRAINS`, 724 (93%) ligam nós de audit (sinal de campo do onion-slm, medido no
+  > das 777 arestas `CONSTRAINS`, 724 (93%) ligam nós de audit (sinal de campo de um adotante, medido no
   > commit `2d316566`). A ontologia passa a dizer o que a casa faz; reescrever 724 arestas para obedecer a
   > uma lista que contradizia a própria gramática seria corrigir o lado errado.
 - `layer: domain` — o SSOT de domínio: `entity`/`state`/`event`/`rule`/`invariant`/`policy`, arestas
@@ -53,7 +53,7 @@ esperado, o lifecycle e os marcadores. Os KINDS canônicos:
 |---|---|---|---|---|---|
 | **plano/backlog** | a RELAÇÃO cross-grafo + a fila de execução (ondas, DEPENDS_ON) | `docs/onion/graph/` | audit / DEV | `# kg-backlog-guard: on` | `fios-abertos.kg.yaml` |
 | **decision-history** | a memória de decisão de uma área (PRs, catraca, incidentes) | `docs/onion/graph/` | audit / PROD | — | `pr-decision-history-2026-08.kg.yaml`, `catraca-regra49-2026-08.kg.yaml` |
-| **audit** (`meta:evolve`) | achados de auto-auditoria com evidência citada | `docs/onion/graph/` | audit / DEV+PROD | — | `onion-evolution-2026-07*.kg.yaml` |
+| **audit** (`/onion-meta:evolve`) | achados de auto-auditoria com evidência citada | `docs/onion/graph/` | audit / DEV+PROD | — | `onion-evolution-2026-07*.kg.yaml` |
 | **domain-SSOT** (`/onion:kg map`) | o modelo de domínio de um sistema (entity/state/event/rule) | `docs/onion/graph/` ou `docs/<área>/graph/` | domain / PROD | — | grafos de `map` |
 | **research** | investigação que NASCE no grafo (REGRA 43) | `docs/evolution/research/<tema>/` | audit / DEV | — | `kg-read-leg-2026-08/*.kg.yaml` |
 | **identity/estratégia** | posicionamento, north-star, tese | `docs/onion/graph/` | audit / mix | — | `onion-identity-2026-07.kg.yaml` |

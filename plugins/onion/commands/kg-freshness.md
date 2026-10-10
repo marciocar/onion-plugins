@@ -325,7 +325,7 @@ Bloco `KG REVERIFY REPORT` no formato dos irmãos, mais:
 
 ## Notas
 
-- Composição: invocado por `meta:evolve`, devolva o array `KgReverifySchema[]` cru —
+- Composição: invocado por `/onion-meta:evolve`, devolva o array `KgReverifySchema[]` cru —
   espelha o contrato de `/onion:kb-freshness` (D4) e `/onion:context-freshness` (D9).
 - `Bash` largo no `allowed-tools` é **por desenho**: medir o vivo é o ponto. O lint já registra
   que granularidade de `allowed-tools` ficou fora por gerar falso-positivo.

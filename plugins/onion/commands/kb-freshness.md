@@ -15,7 +15,7 @@ allowed-tools: Read Grep Glob
 argument-hint: "[caminho de KB específica | vazio = todas]"
 related_commands:
   - /onion:orchestrate
-  - meta:create-knowledge-base
+  - /onion-meta:create-knowledge-base
 related_agents:
   - onion
   - metaspec-gate-keeper
@@ -36,7 +36,7 @@ A premissa de frescor é simples: **uma KB que ensina o que não existe mais ou
 omite o que existe hoje é pior que nenhuma KB** — ela induz agentes e humanos ao
 erro. A obrigação de manter KBs vivas está documentada em
 `docs/knowledge-base/concepts/agent-orchestration.md` e no comando
-`meta:create-knowledge-base` (seção "Manter viva: revisar quando o tema
+`/onion-meta:create-knowledge-base` (seção "Manter viva: revisar quando o tema
 evolui").
 
 ---
@@ -277,7 +277,7 @@ KB FRESHNESS REPORT — 2026-06-13
 ## Notas
 
 - Este comando **nunca cria nem modifica KBs** — apenas audita e relata. Para
-  aplicar os refreshes, use `meta:create-knowledge-base` (atualizar KB
+  aplicar os refreshes, use `/onion-meta:create-knowledge-base` (atualizar KB
   existente) ou `/onion:orchestrate` (atualização em lote de muitas KBs de uma vez).
 - A doutrina de orquestração (fan-out-and-synthesize, model tiering, teto de 16
   workers, verificação adversarial) vem de
@@ -287,10 +287,10 @@ KB FRESHNESS REPORT — 2026-06-13
   executa diretamente com `Agent` (sem overhead de Workflow).
 - Orquestre **sempre no nível principal** — nunca dentro de um subagente e
   **não crie** um agente "kb-freshness-worker".
-- **Contrato de composição (D4 do `meta:evolve`)**: quando invocado por
-  `meta:evolve`, retorne o **array `FreshnessSchema[]` cru** (não apenas o
+- **Contrato de composição (D4 do `/onion-meta:evolve`)**: quando invocado por
+  `/onion-meta:evolve`, retorne o **array `FreshnessSchema[]` cru** (não apenas o
   relatório Unicode), para que o `evolve` mescle os vereditos direto no backlog
-  sem reparsear. O schema (acima) é o contrato. `meta:evolve` chama este comando
+  sem reparsear. O schema (acima) é o contrato. `/onion-meta:evolve` chama este comando
   no **fluxo principal** e ingere o array — nunca aninha esta orquestração dentro da dele.
 
 ---
@@ -299,7 +299,7 @@ KB FRESHNESS REPORT — 2026-06-13
 
 - KB de doutrina de orquestração: `docs/knowledge-base/concepts/agent-orchestration.md`
 - Skill operacional do fan-out: `onion-orchestration`
-- Comando de geração de KB: `meta:create-knowledge-base`
+- Comando de geração de KB: `/onion-meta:create-knowledge-base`
 - Saúde documental ampla: `/onion-product:docs-health`
 - Atualização em lote: `/onion:orchestrate`
 - Índice mestre: `docs/knowledge-base/index.md` (atualizar via `/onion-product:build-index`)

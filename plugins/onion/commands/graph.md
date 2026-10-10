@@ -23,7 +23,7 @@ responde o que o LLM faz mal (impacto/órfão/caminho).
 
 - **Antes de mudar um artefato:** "o que depende disto?" (análise de impacto reversa).
 - **Para orquestrar:** "como chego de uma necessidade à capacidade que a entrega?" (caminho).
-- **Na higiene/`meta:evolve`:** achar **órfãos** (artefatos que ninguém referencia).
+- **Na higiene/`/onion-meta:evolve`:** achar **órfãos** (artefatos que ninguém referencia).
 - **Para o `@onion` compor a visão-de-fora** sem tabela hardcoded.
 
 ## Uso

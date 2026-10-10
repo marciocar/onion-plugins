@@ -387,7 +387,7 @@ if printf '%s\n' "$cmd" | grep -qE '(^|[;&|][[:space:]]*|^[[:space:]]*)gh[[:spac
       add 'MERGE-SEM-REVISOR: este repo NÃO tem o workflow do revisor Onion, logo o check `onion-review-verdict` NÃO existe aqui — não vá procurá-lo. O merge não tem revisor automático: leia os checks que ESTE repo tem (`gh pr checks <N>`). Para ganhar o revisor: `meta:adopt` (ou a oferta de CI, se já adotado).'
     fi
 fi
-# O AVISO DO CREATE OLHA O ARTEFATO E O PAPEL, NÃO SÓ A STRING (sinal do onion-kg-ssot, 2026-10-07).
+# O AVISO DO CREATE OLHA O ARTEFATO E O PAPEL, NÃO SÓ A STRING (sinal de um adotante, 2026-10-07).
 # A 1ª redação casava o comando e nunca conferia nada, e mediu-se o defeito pelos DOIS lados no
 # mesmo dia: (1) o PR #3 de lá tinha o resíduo commitado ANTES do `gh pr create` e o aviso disparou
 # igual — avisar quem seguiu o ritual é a fadiga que este arquivo combate; (2) num repo com papel
@@ -413,7 +413,7 @@ _residuo_commitado() {  # $1=dir $2=branch — o resíduo da REGRA 56 está na b
   [ -n "$2" ] || return 1
   git -C "$1" cat-file -e "$2:docs/evolution/review/$(printf '%s' "$2" | tr / -).md" 2>/dev/null; }
 _repo_derivado() {  # o MESMO predicado da REGRA 56 (review-artifact-check.sh): fora de escopo ali
-  grep -qE '^(role:[[:space:]]*(adopted|hub|standalone)|decoupled_from:)' "$1/.claude/.onion-version" 2>/dev/null; }
+  grep -qE '^(role:[[:space:]]*(adopted|hub|standalone)|decoupled_from:|kind:[[:space:]]*door)' "$1/.claude/.onion-version" 2>/dev/null; }
 
 if printf '%s\n' "$cmd" | grep -qE '(^|[;&|][[:space:]]*|^[[:space:]]*)gh[[:space:]]+pr[[:space:]]+create([[:space:]]|$)'; then
     _prd="$(_pr_dir)"; _prb="$(_pr_branch "${_prd}")"
