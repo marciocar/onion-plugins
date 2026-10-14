@@ -4,7 +4,8 @@
 > AVANÇAR por KIND de nó, a **tabela de selagem** (onde o driver auto-avança e onde PARA), as 6 regras
 > de doutrina que ele encarna, e os anti-padrões. A **Fase 0** (o Censo determinístico) já existe como
 > mecanismo: `${CLAUDE_PLUGIN_ROOT}/validation/kg-drive-project.sh`. A **Fase 1** (o laço em si, `/onion:drive`) é
-> construída sobre este contrato. **Fase 2** (o degrau AUTOMATE) é gated.
+> construída sobre este contrato. **Fase 2** (o degrau AUTOMATE) foi forjada em 2026-10-14, com o merge
+> desligado por padrão: `${CLAUDE_PLUGIN_ROOT}/validation/drive-automate.sh`, contrato no fragmento `drive-doctrine.md`.
 >
 > **Por que existe.** O reforço-prosa do maestro (*"siga com execução até o final… nada parado sem
 > controle"*) é **disciplina, não mecanismo**. O `/onion:realign` já mecanizou o *alinhamento*; este
@@ -16,9 +17,13 @@
 O driver opera num **degrau declarado**, nunca acima:
 - **Nível 0** (auto sempre): atos reversíveis em worktree própria (branch/commit/PR/dogfood), `write(KG)` de append, **propor** ato-3.
 - **AUDIT** (o degrau da Fase 1): conduz um fio **até PR-verde sozinho**; **merge no main é 100% humano, em LOTE** num checkpoint.
-- **AUTOMATE** (Fase 2, gated): auto-merge só sob 3 pré-condições duras (enabler git-nativo · path-allowlist `git diff ∩ vendor = ∅` · política 100% mecânica, LLM veto-only).
-  **Decisão do maestro (2026-10-12, SAC-74): no AUTOMATE o merge é POR PADRÃO.** A sua ordem de
-  2026-08-18 ("até o final" = executar → commit → PR → **MERGE**, sem pedir de novo) vira degrau.
+- **AUTOMATE** (Fase 2, forjada em 2026-10-14): auto-merge só sob 3 pré-condições duras (enabler git-nativo · path-allowlist `git diff ∩ vendor = ∅` · política 100% mecânica, LLM veto-only).
+  **Decisão do maestro (2026-10-12, SAC-74, `/onion:decide` sobre `D_AUTO_DRIVE_DEGRAU_AUTOMATE`): «Forjar com as
+  objeções», com `--merge` DESLIGADO por padrão.** A proposta pedia merge por padrão; a pergunta selada o
+  inverteu, e as quatro objeções do grafo (`CONSTRAINS`) viraram requisito. A ordem de 2026-08-18 ("até o final"
+  = executar → commit → PR → **MERGE**) vira degrau **com mecanismo de controle**: o merge acontece quando o
+  maestro passa `--merge`, e nunca por omissão. O contrato do degrau é o fragmento
+  `common:prompts:drive-doctrine` (citado pelo `/onion:drive`), e o executor, `${CLAUDE_PLUGIN_ROOT}/validation/drive-automate.sh`.
   As 3 pré-condições ganham nome concreto nesta casa:
   - o **enabler** é o `ops/pr-merge-verified.sh` (core-only), o único caminho de merge; o hook `merge-gate` veta
     qualquer outro com exit 2;
@@ -46,8 +51,15 @@ O driver opera num **degrau declarado**, nunca acima:
     - o que a main trouxe entre o merge-base velho e o novo não toca arquivo do PR, fora as projeções geradas;
     - nenhum alarme de main quebrado está aberto (com o alarme aberto, só o conserto entra, e nunca sem CI);
     - o ruleset não tem regra além dos checks (o bypass contorna o ruleset inteiro; com outra regra, espera);
-    - não foi passado `--wait-ci-after-rebase` (o opt-out, também aceito pelo `merge-serial.sh`).
+    - não foi passado `--wait-ci-after-rebase` (o opt-out, também aceito pelo `merge-serial.sh`);
+    - as projeções geradas do head novo, regeneradas na árvore combinada, são **byte-idênticas** às do head anterior (FASE 0, abaixo). Mudou alguma, o CI nunca viu aquela projeção e o head novo espera.
     Os gates rodam contra o head anterior. O ruleset exige os checks **no head do PR**, e um head recém-empurrado não tem nenhum, então o merge vai pelo bypass de admin em PR, com `--match-head-commit` no head novo: se alguém empurrar depois da decisão, o forge recusa. A decisão sai no log e no comentário de auto-rebase do PR. **Janela declarada:** dois PRs que mudam arquivos diferentes e se quebram semanticamente entram os dois, e só a completa do main pega. O lote com bissecção (B) fica gated em `#Q_MERGE_LOTE_COM_BISSECCAO`, e o gatilho é o main quebrar por combinação de PRs, contado pelas issues do alarme;
+  - **a base do PR tem de ser a ponta do main** (strict local, FASE 0 da decisão do maestro de 2026-10-14 sobre `D_POSTMERGE_PROJECTION_WRITER_2026_10`, «Fase 0 já + ler primárias antes do B1»; evidência em `…merge-process-onion-2026-10.kg.yaml#E_STRICT_LOCAL_EXECUTADO_2026_10_14`). O ruleset tem `strict_required_status_checks_policy: false`, então o forge aceita PR atrás do main e mergeia a árvore combinada, que o CI nunca viu. Foi assim que o `docs/backlog.md` entrou com 479 itens e o cabeçalho de 478: dois PRs faziam o mesmo `477→478`, e o merge textual somou os itens sem conflito. Agora:
+    - a distância é lida no forge (`compare <base>...<head>`, `behind_by`); leitura ilegível não mergeia;
+    - PR atrás **sem conflito** passa pelo mesmo auto-rebase do CONFLICTING (`pr-finalize --rebase --push`, que regenera as projeções na árvore combinada e as commita no head), com o mesmo teto de 2 rebases na série; o main que não para de andar para no teto, sem merge;
+    - uma última leitura logo antes do merge: o `--match-head-commit` amarra o head, não a base, e o main pode ter andado durante a espera do CI (direto: para; na série: rc 4, volta à fila);
+    - com `--merge-commit`, PR atrás é recusado com o caminho (mergear a base na branch), porque o rebase linearizaria o merge que é o conteúdo;
+    - **preço medido** nos 50 últimos merges (#1045–#1099): 5 estavam atrás, ou seja, 5 rebases a mais (10%), e 3 deles esperariam o CI do head novo (~15–25 min cada) porque o main tinha trazido projeção. Como 43 de 50 PRs commitam projeção, o caminho rápido depois de um rebase fica raro;
   - a **path-allowlist** é a parada dura "path vendorizado/outward-facing" (REGRA 36 e REGRA 30);
   - a **política mecânica** são as **paradas duras**, todas PARA:
     - decisão não tomada;
@@ -58,8 +70,11 @@ O driver opera num **degrau declarado**, nunca acima:
     - ciclo na cadeia.
 
   ⚠️ **O degrau só abre quando as paradas duras forem predicados executáveis com mutante (SAC-114).**
-  Antes disso o `/onion:drive` segue em AUDIT. Merge por padrão sobre parada em prosa é o carimbo
-  automático que esta doutrina existe para matar.
+  Merge por padrão sobre parada em prosa é o carimbo automático que esta doutrina existe para matar.
+  **Aberto em 2026-10-14:** cada parada acima é um veredito nomeado do `drive-automate.sh` (`DECISAO-NAO-TOMADA`,
+  `ELENXO-REPROVADO`/`ELENXO-UMA-VOZ`, `CI-VERMELHO`/`CI-VAZIO`, `REPO-ALHEIO`, `BUDGET-ESGOTADO`/`TETO-DE-NOS`,
+  `CICLO`, `PATH-VENDORIZADO`), com caso e mutante na família `run_drive_automate_selftests`. Sem `--merge`
+  o degrau para em PR verde (rc 3, AUDIT).
 - **MOAT** (nunca): deploy · escrever repo alheio (I3) · merge de path vendorizado/outward-facing · **agendar por relógio (W7)**. O driver é **maestro-invocado**, nunca cron/`/loop` sobre si.
 
   **O que do MOAT é VETO e o que segue PROSA (2026-10-13).** Até 2026-10-13 só o merge no main tinha veto
@@ -145,7 +160,7 @@ proposta útil da trivial?").
 | **REFUTED/SUPERSEDED de nó NUNCA SELADO** (§4.1) | mesmo ato, mas o par nasce e cai no MESMO PR | **AUTO nas 4 precondições** (`kg-seal-exception.sh`); a 4ª — o flip nomeado na `drive_checkpoint_note` do lote — mecanizada em 2026-10-04 |
 | verification **UNVERIFIABLE** | `blocked_by`, **não carimba** | **AUTO** (não-escrita; 1ª classe) |
 | execution → PR-verde | conduz em worktree | **AUTO até o PR** |
-| **merge no main** | — | **AUDIT: PARA** (100% humano, em lote) · **AUTOMATE: AUTO** pelo `ops/pr-merge-verified.sh` (core-only), salvo parada dura (§0; decisão de 2026-10-12, aberta só com o SAC-114) |
+| **merge no main** | — | **AUDIT: PARA** (100% humano, em lote) · **AUTOMATE: PARA por padrão**; com `--merge` explícito, AUTO pelo `ops/merge-serial.sh` → `ops/pr-merge-verified.sh` (core-only), salvo parada dura (§0; decisão de 2026-10-12, aberta em 2026-10-14) |
 | **decisão não-tomada** | frame + Elenxo + propõe | **PARA** (selo humano) |
 | drift tipo-(c) estrutural | novo nó + `SUPERSEDES` datado | **AUTO** (realign repara determinístico) |
 | **MOAT** | — | **NUNCA / PARA** (parte é veto por alvo desde 2026-10-13; a tabela do §0 diz qual) |

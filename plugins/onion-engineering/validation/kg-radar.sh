@@ -339,7 +339,7 @@ section == "nodes" && nid != "" {
   # que codificou o relato, circular por construção. Sem o marcador, esses nós passavam nos três
   # vereditos com carimbo fresco, indistinguíveis de um nó medido. Default (ausente) = measured.
   if (line ~ /^[[:space:]]*evidence_class:/) { v = line; sub(/^[[:space:]]*evidence_class:/, "", v); eclass[nid] = trim(v) }
-  # provenance.method (2026-10-12, decisão do maestro sobre o selo do meta:decide): só para reconhecer a decisão
+  # provenance.method (2026-10-12, decisão do maestro sobre o selo do /onion:decide): só para reconhecer a decisão
   # SELADA PELO MAESTRO, que é done em DEV por natureza (ver o aviso decision-done-em-DEV abaixo).
   if (line ~ /^[[:space:]]+method:/) { v = line; sub(/^[[:space:]]+method:/, "", v); pmethod[nid] = trim(v) }
   if (line ~ /^[[:space:]]*verified_against:/) {

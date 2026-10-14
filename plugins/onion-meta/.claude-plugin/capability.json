@@ -1,6 +1,6 @@
 {
   "name": "onion-meta",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "conformance": "bronze",
   "provides": ["meta-factory","self-audit","skill-absorption"],
   "requires": ["skill:onion-patterns","plugin:onion"],

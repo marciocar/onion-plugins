@@ -1,6 +1,6 @@
 {
   "name": "onion-meta",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Meta-fábrica do Sistema Onion: cria comandos, agentes, skills, abstrações SDAAL e knowledge bases pelos templates do framework, audita o próprio framework (evolve, dissect) e absorve skills de terceiros com proveniência.",
   "author": { "name": "Onion - Marcio Carvalho" },
   "homepage": "https://onionevolve.com",
