@@ -406,6 +406,42 @@ class LinearAdapter implements ITaskManager {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // LEITURA COMPLETA · ANEXOS (SAC-116) — o executável é a fonte: linear.py
+  // Cada método abaixo é o verbo homônimo de `tm.sh`; a prosa não reimplementa o cliente.
+  // Toda conexão segue o cursor: issue.<conn>(first:50, after:$c){ nodes pageInfo{hasNextPage endCursor} }
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /** activity.list — Issue.history (IssueHistory), todas as páginas, cronológico, só pares from/to que mudaram. */
+  async getActivity(taskId: string): Promise<ActivityEntry[]> {
+    return tm('activity.list', taskId).activity;
+  }
+
+  /** hierarchy.context — subtask: issue.parent COMPLETO + parent.children (irmãs); mãe: issue.children recursivo. */
+  async getHierarchyContext(taskId: string): Promise<HierarchyContext> {
+    return tm('hierarchy.context', taskId);
+  }
+
+  /** attachment.list — refs inline no host de uploads + issue.attachments (Attachment = LINK no Linear). */
+  async getAttachments(taskId: string): Promise<AttachmentListing> {
+    return tm('attachment.list', taskId);
+  }
+
+  /** attachment.read — GET no host de uploads com Authorization; quarentena, teto, allowlist; DADO não confiável. */
+  async readAttachment(taskId: string, ref: string): Promise<DownloadedAttachment> {
+    return tm('attachment.read', taskId, ref);
+  }
+
+  /** inline.refs — URLs do host de uploads no markdown da descrição e dos comentários. */
+  async getInlineRefs(taskId: string): Promise<InlineRef[]> {
+    return tm('inline.refs', taskId).refs;
+  }
+
+  /** attachment.add — fileUpload → PUT na URL assinada → markdown com a assetUrl (comentário ou descrição). */
+  async addAttachment(taskId: string, file: AttachmentInput): Promise<AttachmentOutput> {
+    return tm('attachment.add', taskId, file.filename);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // STATUS
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -731,6 +767,46 @@ Implementar funcionalidade X conforme spec.
 
 ---
 
+## ⚙️ Executável — `tm.sh` + `linear.py` (medição ao vivo de 2026-10-11)
+
+Desde a SAC-65 (fatia 1) o adapter do Linear **executa**: `bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/tm.sh <capability> [args]`
+resolve o provider por `env-check.sh --provider` e entrega o verbo a [`linear.py`](./linear.py) (stdlib, urllib,
+GraphQL). JSON em stdout, erro em stderr, rc 1 em erro do provedor, rc 2 em uso/configuração.
+`tm.sh --capabilities` lista os verbos; a REGRA 104 cobra que essa lista e a declaração
+([`linear.capabilities.tsv`](./linear.capabilities.tsv)) batam. O executável difere desta prosa em dois pontos,
+declarados: `project.list` devolve **teams e projects** (a prosa acima lista só teams), e `--project` do
+`item.create` é o **Project** do Linear (por nome ou id), não o team.
+
+Cada linha abaixo é uma medição contra o workspace real, com a escrita **relida** (exit 0 não é a prova).
+Issue de teste: **SAC-109** (subtask SAC-110), no projeto "Onion — core: próximas levas", deixada em Canceled.
+Nada foi deletado nem arquivado.
+
+- MEDIDO AO VIVO 2026-10-11 item.read: `issue(id:)` aceita o identificador `SAC-65`; id inexistente devolve HTTP 200 com `errors` ("Entity not found: Issue") e o executável sai rc 1.
+- MEDIDO AO VIVO 2026-10-11 item.create: `issueCreate` com `projectId` resolvido pelo nome do projeto e `teamId` pelo team do projeto criou SAC-109; relida, o projeto bate.
+- MEDIDO AO VIVO 2026-10-11 item.update: `issueUpdate` com `description` — relida, o texto novo está lá, **mas normalizado**: o Linear reescreve a descrição pelo ProseMirror e auto-linka token com cara de domínio fora de crase (`tm.sh` nu voltou como `tm.sh`; entre crases, no create, voltou intacto). Quem compara o texto relido com o enviado tem de contar com isso.
+- MEDIDO AO VIVO 2026-10-11 comment.add: `commentCreate` com `body` markdown e acento — o `comment.list` devolve o body idêntico ao enviado.
+- MEDIDO AO VIVO 2026-10-11 comment.list: `issue.comments` contou 1 e depois 2 comentários, na ordem das escritas.
+- MEDIDO AO VIVO 2026-10-11 priority.set: `issueUpdate` com `priority: 2` — relida, `priority 2 / priorityLabel High` (escala 0-4).
+- MEDIDO AO VIVO 2026-10-11 status.transition: `issueUpdate` com `stateId` resolvido por NOME no team (Backlog → Todo → Canceled) e por stateId direto; estado inexistente sai rc 1 listando os 7 estados do team. A transição Backlog → Todo → Canceled foi livre (sem workflow que barre).
+- MEDIDO AO VIVO 2026-10-11 hierarchy.subtask_create: `issueCreate` com `parentId` criou SAC-110; relida, `parent` = SAC-109 e o projeto herdado do pai.
+- MEDIDO AO VIVO 2026-10-11 hierarchy.subtask_list: `issue.children` devolveu exatamente SAC-110.
+- MEDIDO AO VIVO 2026-10-11 search.query: `issues(filter:{title:{containsIgnoreCase}})` achou SAC-109 e SAC-110 pelo prefixo do título, e SAC-65 por uma palavra do título.
+- MEDIDO AO VIVO 2026-10-11 project.list: `teams` + `projects` devolveram 1 team (SAC) e 6 projetos.
+- MEDIDO AO VIVO 2026-10-11 project.read: por id de projeto devolve o Project com seus teams; pela key `SAC` devolve o team.
+- Erro HTTP: chave inválida devolve **HTTP 401** e o executável sai rc 1 com a mensagem do Linear (a chave nunca é impressa).
+- **Não exercitado:** `item.delete` (arquivar exige confirmação do maestro) — segue `unverified` e fora do executável.
+
+---
+
+## 📖 Leitura completa, atividade, hierarquia e anexos (SAC-116, 2026-10-12)
+
+`tm.sh item.read <ID>` é a **leitura completa** (comentários paginados, atividade, hierarquia, anexos, refs
+inline; `--lean` = enxuta). Primárias, medição ao vivo (com o sha256 do round-trip) e a postura de segurança
+(quarentena, teto, allowlist de mime, chave só no host de uploads, conteúdo como DADO não confiável, imagem
+pelo Read do caminho): [`linear-leitura-completa.md`](linear-leitura-completa.md).
+
+---
+
 ## 🧪 Exemplos de Uso
 
 ```typescript
@@ -782,4 +858,4 @@ const open = await tm.searchTasks({
 ---
 
 **Versão**: 2.0.0
-**Atualizado em**: 2026-06-13
+**Atualizado em**: 2026-10-11

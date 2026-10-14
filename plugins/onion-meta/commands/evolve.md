@@ -37,7 +37,7 @@ o que ela **não** promete — está em `common:prompts:evolve-doctrine`.
 | 2 doutrina | `common/prompts/evolve-doctrine.md` |
 | 3 contexto injetado | `${CLAUDE_PLUGIN_ROOT}/validation/evolve-census.sh` — o raio-X, injetado abaixo |
 | gatilho | REGRA 97 (A auto-auditoria do framework tem GATILHO) — `${CLAUDE_PLUGIN_ROOT}/validation/evolve-staleness-check.sh` |
-| 4 orquestração | `.claude/workflows/evolve.js` — o fan-out (D1 D2 D3 D6 D7 D8 + MAQ) com JSON Schema real e refutador por achado |
+| 4 orquestração | `.claude/workflows/meta-evolve-fanout.js` — o fan-out (D1 D2 D3 D6 D7 D8 + MAQ) com JSON Schema real e refutador por achado |
 | 5 destino | o `.kg.yaml` de auditoria + `kg-radar` exit 0 + o contrato de custo (Passo 4) |
 | 6 lente | `.claude/rules/evolve-lens.md` |
 | 7 bancada | `run_evolve_census_selftests` |
@@ -51,6 +51,11 @@ doutrina que carrega, plano, idade desta própria auditoria) e mede o que eles *
 julga qualidade e não prioriza. O valor do evolve é o **confronto** entre as seções, que nenhum
 órgão isolado entrega. E a seção 4 mede se a doutrina **carregou**, nunca se **aterrissou**:
 achado sobre doutrina diz qual das duas coisas mediu.
+
+> **Num adotante**, a MAQ audita a maquinaria **vendorizada** (código do core no pin): o achado sobe
+> por `meta:co-relay` e a cura volta pelo update; o `tools/` do produto adotante fica **fora** do
+> escopo (doutrina, cláusula 7). Lá o raio-X diz `n/a no adotante` para o plano do core e
+> `? NÃO MEDIDA (opt-out)` para a idade quando não há `docs/analysis/` — nunca ✅.
 
 ## 🎯 Objetivo
 
@@ -143,7 +148,7 @@ independentes"; independência = alta (cada dimensão é autônoma); padrão esp
 D4/D5/D9 são comandos com orquestração própria; invocá-los de dentro do workflow seria orquestração
 aninhada. D10 só existe no contexto principal (subagente não enxerga a memória de sessão). Por isso
 rodam **aqui**, um por vez (via `Skill`), e os achados entram à mão no fan-in no formato do schema
-`FINDINGS` de `.claude/workflows/evolve.js`:
+`FINDINGS` de `.claude/workflows/meta-evolve-fanout.js`:
 
 | dim | como | o que entra |
 |---|---|---|
@@ -155,10 +160,10 @@ rodam **aqui**, um por vez (via `Skill`), e os achados entram à mão no fan-in 
 Dimensão que não rodou é **lacuna declarada** no relatório, nunca zero. Zero achados só vale com o
 comando executado e a saída que o sustenta.
 
-### Passo 3 — Fan-out (peça 4: `.claude/workflows/evolve.js`)
+### Passo 3 — Fan-out (peça 4: `.claude/workflows/meta-evolve-fanout.js`)
 
 ```javascript
-Workflow({ scriptPath: '.claude/workflows/evolve.js',
+Workflow({ scriptPath: '.claude/workflows/meta-evolve-fanout.js',
   args: { dims: [],               // vazio = D1 D2 D3 D6 D7 D8 MAQ; ou ex. ['D1'] para uma só
           maqTargets: '<cole a seção 7 do raio-X>',   // sem isto a MAQ NÃO roda (nunca inventa alvo)
           cap: 8 } })             // achados por dimensão; o excedente sai em total_seen (corte declarado)
@@ -166,8 +171,10 @@ Workflow({ scriptPath: '.claude/workflows/evolve.js',
 
 O script carrega os schemas reais (`FINDINGS`, `VERDICT`), atribui o `id` estável
 (`<dim>-<ordinal>`) e passa todo achado `blocker`/`recommended` por um refutador `opus/high` — em
-pipeline, sem barreira. Devolve `dims` (vistos × devolvidos, por dimensão), `skipped` (não pedida
-ou sem alvo), **`lost`** (o worker lançou: lacuna, nunca zero), `survived`, **`unjudged`** (o juiz
+pipeline, sem barreira. Devolve **`complete`** (true só com as 10 — **nunca** daqui sozinho, porque
+D4/D5/D9/D10 são deste Passo 2.5), **`measured`**, **`not_measured: [{d, reason}]`** (cada dimensão
+que não mediu, com o motivo: composição, não pedida, Census recusado, lost, dead), `dims` (vistos ×
+devolvidos, por dimensão), `skipped` (lista nua, mantida por compatibilidade), **`lost`** (o worker lançou: lacuna, nunca zero), `survived`, **`unjudged`** (o juiz
 devolveu nulo ou falhou: vai ao grafo como **não julgado**, nunca como sobrevivente), `refuted` e
 `verdicts`. Entrada ruim (`args` que não é objeto nem JSON, `cap` fora de 1..30, dimensão D4/D5/D9/D10)
 **recusa** com `{error}` — nunca roda tudo em silêncio.
@@ -187,7 +194,7 @@ Um juiz (opus) tenta **refutar** o achado e, sobretudo, **veta qualquer proposta
 que funda fases de workflow faseado** (commands.md §3) —
 falha de modo mais grave. Achados que sobrevivem entram no backlog.
 
-A correlação achado↔veredito é **por construção** no `evolve.js`: o refutador recebe UM achado e o
+A correlação achado↔veredito é **por construção** no `meta-evolve-fanout.js`: o refutador recebe UM achado e o
 script grava `{ id, verdict }` ao lado — o juiz nunca precisa ecoar texto nem id. O schema do
 veredito é o `VERDICT` do script (`refuted`, `vetoed_phase_merge`, `reasoning`, todos obrigatórios).
 Na prática o script julga **todo** achado `blocker`/`recommended` **e** todo achado — de qualquer
@@ -195,8 +202,16 @@ severidade — cujo alvo, proposta ou texto toque `engineer/`, `product/`, fusã
 achados do Passo 2.5 **não** passam por juiz e o relatório diz isso. (A 1ª versão julgava só por
 severidade, e um `opportunistic` que propusesse fundir fases escapava do veto — achado do Elenxo.)
 
+> ⚠️ **Disparar o workflow `meta-evolve-fanout` pelo NOME, sem args, é o atalho parcial** (medido
+> 2026-10-12 no adotante `adotante KG-SSOT`, quando ele ainda se chamava `evolve` e aparecia na lista como
+> `/evolve`, ao lado deste comando — por isso foi renomeado em 2026-10-13: é peça interna, não alternativa): cobre no máximo 6 das 10 dimensões, mais a MAQ. Sem `maqTargets`, uma
+> fase `Census` (haiku/low) roda o raio-X e o script extrai a seção 7 verbatim, conferindo os
+> cabeçalhos; se ela não vier inteira, a MAQ sai em `not_measured` com o motivo. O caminho completo
+> é **este comando**.
+
 ### Passo 3.2 — Completeness critic (no contexto principal, sobre o retorno)
 Não é um agente: é a conferência que **você** faz antes do fan-in, sobre o que o script devolveu.
+Parta do `not_measured`: tire dele o que o Passo 2.5 rodou de fato, e o que sobrar é lacuna do relatório.
 As 10 dimensões têm de aparecer em exatamente um lugar — `dims` (rodou), `skipped`, `lost`, ou o
 Passo 2.5 (rodou ou lacuna declarada). `lost` e `unjudged` não-vazios vão para o relatório **e** para
 o grafo. Vazio silencioso numa dimensão é falha, não sucesso — vale também para o D9 no core, cujos
@@ -222,7 +237,7 @@ No contexto principal, parta do `survived` que o workflow devolve **mais** os ac
 
 ### Passo 5 — Fallback serial (Workflow indisponível)
 Avise em pt-BR; itere as dimensões com `Agent` uma a uma com os mesmos
-prompts do `.claude/workflows/evolve.js`, pedindo a saída no formato do schema `FINDINGS` (o `Agent`
+prompts do `.claude/workflows/meta-evolve-fanout.js`, pedindo a saída no formato do schema `FINDINGS` (o `Agent`
 não recebe schema: valide a forma ao receber); consolide igual ao Passo 4. Nunca finja paralelismo.
 
 ## 📤 Saída — `docs/analysis/onion-evolution-<data>.md`

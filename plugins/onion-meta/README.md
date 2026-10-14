@@ -2,7 +2,7 @@
 
 Meta-fábrica do Sistema Onion: cria comandos, agentes, skills, abstrações SDAAL e knowledge bases pelos templates do framework, audita o próprio framework (evolve, dissect) e absorve skills de terceiros com proveniência.
 
-**Versão** `0.1.0` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `bronze`
+**Versão** `0.1.1` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `bronze`
 
 ## Instalar
 
@@ -63,7 +63,7 @@ Invocação: `/onion-meta:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `3f51b900a18a` |
+| tree_sha (hash do conteúdo das fontes) | `2e7950d558ee` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
@@ -71,7 +71,7 @@ Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT e
 
 ## Comandos do core citados (não distribuídos neste plugin)
 
-Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `meta:forge`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
+Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `meta:co-evolve`, `meta:co-relay`, `meta:forge`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
 
 ## Requer
 

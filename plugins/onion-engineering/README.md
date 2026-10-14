@@ -2,7 +2,7 @@
 
 Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persistentes), gates pré-PR, especialistas de código (Node, React, Postgres, NX, Docker, segurança) e testes (unit/integration/e2e, estratégia de teste, QA story points).
 
-**Versão** `0.1.142` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.143` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -97,7 +97,7 @@ Invocação: `/onion-engineering:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `b8722b0bba62` |
+| tree_sha (hash do conteúdo das fontes) | `8bd085f8d6ad` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
@@ -105,7 +105,7 @@ Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT e
 
 ## Comandos do core citados (não distribuídos neste plugin)
 
-Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `git:feature:finish`, `git:feature:publish`, `git:feature:start`, `git:hotfix:finish`, `git:hotfix:start`, `git:release:finish`, `git:release:start`, `meta:adopt`, `meta:co-evolve`, `test:watch`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
+Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `git:feature:finish`, `git:feature:publish`, `git:feature:start`, `git:hotfix:finish`, `git:hotfix:start`, `git:release:finish`, `git:release:start`, `meta:adopt`, `meta:co-evolve`, `meta:decide`, `test:watch`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
 
 ## Funciona melhor com
 

@@ -76,13 +76,17 @@ _run() {
 _n() { if [ -n "${1:-}" ]; then printf '%s' "$1"; else printf '?'; fi; }
 
 # ── 1. PEÇAS ──────────────────────────────────────────────────────────────────────────────────
-P_OK=0; P_TOT=""; P_7=""; P_1=""; P_SURF=""
+P_OK=0; P_TOT=""; P_7=""; P_1=""; P_SURF=""; P_1_CMD=""; P_1_SKL=""
 if PIECES="$(FORGE_CENSUS_TOP=1000 _run pecas 0 forge-census.sh . --tsv)"; then
   P_OK=1
   P_TOT="$(awk -F'\t' 'NR>1 && $2!=""' <<< "${PIECES}" | grep -c . || true)"
   P_7="$(awk -F'\t' 'NR>1 && $1==7' <<< "${PIECES}" | grep -c . || true)"
   P_1="$(awk -F'\t' 'NR>1 && $1==1' <<< "${PIECES}" | grep -c . || true)"
-  P_SURF="$(awk -F'\t' 'NR>1 && $1==1 {print $2}' <<< "${PIECES}" | sort)"
+  # rótulo<TAB>caminho: o CAMINHO diz se a superfície é comando ou skill (MAQ-3, sinal do adotante
+  # adotante KG-SSOT 2026-10-12: a seção 7 dizia "37 comandos" e 7 eram skills e 1 era README).
+  P_SURF="$(awk -F'\t' 'NR>1 && $1==1 {print $2 "\t" $9}' <<< "${PIECES}" | sort)"
+  P_1_CMD="$(awk -F'\t' '$2 !~ /^[.]claude\/skills\//' <<< "${P_SURF}" | grep -c . || true)"
+  P_1_SKL="$(awk -F'\t' '$2 ~ /^[.]claude\/skills\//' <<< "${P_SURF}" | grep -c . || true)"
 fi
 
 # ── 2. GUARDAS ────────────────────────────────────────────────────────────────────────────────
@@ -95,6 +99,9 @@ if GUARDS="$(_run guardas 0 guard-census.sh . --markdown)"; then
   # A 1ª versão filtrava só linhas que começavam com `(`, que é o contrário — escondia
   # `DISPARA e NAO E EXERCITADO` e `COM --selftest e NÃO REGISTRADO` (achado do Elenxo).
   G_PASSIVE="$(grep -E '^- ' <<< "${GUARDS}" | grep -vE '^- \((nenhum|informativo)' || true)"
+  # ⚠️ MEDIDOR QUE SAI 0 SEM A ÂNCORA não mediu (refutador de 2026-10-12): rc 0 com saída vazia
+  #    imprimia "0 com selftest" e "passivo: nenhuma" — verde sem medição. Sem `massa:` não há censo.
+  if [ -z "${G_FAM}" ]; then G_OK=0; G_N=""; G_PASSIVE=""; _note guardas "NAO-MEDIDO: guard-census.sh saiu 0 sem a linha 'massa:' (formato mudou ou saída vazia)"; fi
 fi
 
 # ── 3. DISSECAÇÕES — contadas pela COLUNA de frescor, nunca pela legenda ──────────────────────
@@ -106,6 +113,8 @@ if DISS="$(_run dissect 0 dissect-census.sh . --markdown)"; then
   #    ("VENCIDO não se cita como se fosse de hoje") e publicava "1 vencida" sobre uma dissecação
   #    `fresco` — número falso que chegou a um nó de grafo antes de o Elenxo pegar.
   D_VENC="$(awk -F' [|] ' 'NF>=6 && $1!="ferramenta" {v=$NF; gsub(/[[:space:]]/,"",v); if (v=="vencido") n++} END {print n+0}' <<< "${DISS}")"
+  # sem a linha de declaradas não há censo: "? declarada(s) · 0 vencida(s)" era zero ao lado de `?`
+  if [ -z "${D_N}" ]; then D_OK=0; D_VENC=""; _note dissect "NAO-MEDIDO: dissect-census.sh saiu 0 sem a linha de declaradas"; fi
 fi
 
 # ── 4. DOUTRINA QUE CARREGA — só arquivo que EXISTE e que CARREGOU ───────────────────────────
@@ -132,11 +141,17 @@ fi
 # ── 5. PLANO ──────────────────────────────────────────────────────────────────────────────────
 PL_OK=0; PL_RDY=""; PL_BLK=""; BL_N=""
 PLAN="${REPO}/docs/onion/graph/fios-abertos.kg.yaml"
-if [ ! -f "${PLAN}" ]; then _note plano "AUSENTE: docs/onion/graph/fios-abertos.kg.yaml"
+# ⚠️ NO ADOTANTE o plano do core NÃO VIAJA: "AUSENTE" ali é falta de objeto no papel, não medidor
+#    quebrado — e a lista do não-medido o tratava como lacuna (sinal adotante KG-SSOT 2026-10-12).
+#    O papel é lido do carimbo `.claude/.onion-version`, o mesmo que o meta:co-evolve usa.
+PL_NA=0
+if [ ! -f "${PLAN}" ] && [ -f "${REPO}/.claude/.onion-version" ]; then PL_NA=1
+elif [ ! -f "${PLAN}" ]; then _note plano "AUSENTE: docs/onion/graph/fios-abertos.kg.yaml"
 elif PL="$(_run plano 0 kg-drive-project.sh "${PLAN}")"; then
   PL_OK=1
   PL_RDY="$(grep -oE 'pronto=[0-9]+' <<< "${PL}" | grep -oE '[0-9]+' | head -1)"
   PL_BLK="$(grep -oE 'bloqueado=[0-9]+' <<< "${PL}" | grep -oE '[0-9]+' | head -1)"
+  [ -n "${PL_RDY}" ] || _note plano "NAO-MEDIDO: kg-drive-project.sh saiu 0 sem 'pronto=' (formato mudou?)"
 fi
 if [ -f "${REPO}/docs/backlog.md" ]; then
   BL_N="$(grep -oE '\*\*[0-9]+ itens abertos\*\*' "${REPO}/docs/backlog.md" | grep -oE '[0-9]+' | head -1)"
@@ -144,19 +159,52 @@ if [ -f "${REPO}/docs/backlog.md" ]; then
 else _note backlog "AUSENTE: docs/backlog.md"; fi
 
 # ── 6. A IDADE DESTA AUDITORIA — rc 1 é "achei sinal", só ≥2 é falha ──────────────────────────
-S_OK=0; S_N=""; S_TXT=""
-if STALE="$(_run idade 1 evolve-staleness-check.sh "${REPO}" --tsv)"; then
+S_OK=0; S_N=""; S_TXT=""; S_OPTOUT=0
+# ⚠️ OPT-OUT NÃO É FRESCOR. A guarda da REGRA 97 só opta pela presença de `docs/analysis/` e, sem a
+#    pasta, sai rc 0 com saída VAZIA — que a contagem lia como "0 sinais" e o raio-X imprimia
+#    "✅ fresca" num adotante que NUNCA rodou a auditoria (verde falso medido no adotante KG-SSOT,
+#    2026-10-12). A pasta é resolvida como a guarda a resolve (EVOLVE_ANALYSIS_DIR), senão os dois
+#    discordariam sobre o mesmo repo.
+if [ ! -d "${EVOLVE_ANALYSIS_DIR:-${REPO}/docs/analysis}" ]; then
+  S_OPTOUT=1; _note idade "NAO-MEDIDA (opt-out): sem docs/analysis/ — a guarda da REGRA 97 cala por desenho, e silêncio não é frescor"
+elif STALE="$(_run idade 1 evolve-staleness-check.sh "${REPO}" --tsv)"; then
   S_OK=1
   S_N="$(awk -F'\t' '$2 ~ /^EVOLVE-/' <<< "${STALE}" | grep -c . || true)"
   S_TXT="$(awk -F'\t' '$2 ~ /^EVOLVE-/ {printf "%s ", $2}' <<< "${STALE}")"
 fi
 
 # ── 7. CONFRONTO — cruzar dimensões, que é o que nenhum órgão isolado entrega ─────────────────
+# ⚠️ "VIGIADO" EXIGE ELO ESTRUTURAL, nunca citação (MAQ-0, blocker, sinal adotante KG-SSOT 2026-10-12).
+#    A 1ª versão casava `/meta:<cmd>` em QUALQUER linha de `*-check.sh` e dava create-skill e
+#    create-vertical como vigiados por causa de um COMENTÁRIO (cited-directive-check.sh:6,
+#    marketplace-root-check.sh:45) e de uma STRING DE MENSAGEM (cited-directive-check.sh:204) —
+#    e não via os três co-* que o command-role-parity-check lista pelo CAMINHO em código. É a classe
+#    "texto citado lido como invocação viva". Elo estrutural = o CAMINHO do arquivo da superfície
+#    numa linha de CÓDIGO: comentário (linha ou cauda ` # …`) sai, e linha de mensagem
+#    (printf/echo/_msg=, e as funções de mensagem fail/die/_warn/_err/violation/record_fail) sai.
+#    TETO (medido pelo refutador de 2026-10-12): linha que mistura código e mensagem sai INTEIRA
+#    (falso negativo), um caminho dentro de heredoc de mensagem ainda conta (falso positivo), e só
+#    `*-check.sh` é lido — guarda que mora no lint-artifacts.sh não aparece aqui.
+_guard_links() {  # $1 = caminho-padrão literal → 0 se algum *-check.sh o cita em código
+  local f
+  [ -n "$1" ] || return 1   # padrão vazio casaria tudo: fail-closed, nunca "vigiado"
+  for f in "${V}"/*-check.sh; do
+    [ -f "${f}" ] || continue
+    if awk -v pat="$1" '
+        /^[[:space:]]*#/ { next }
+        { sub(/[[:space:]]#.*$/, "") }
+        /(^|[[:space:];|&({])(printf|echo|fail|die|_?warn|_?err|violation|record_fail)[[:space:]]|_?msg=/ { next }
+        index($0, pat) { hit = 1 }
+        END { exit hit ? 0 : 1 }' "${f}"; then return 0; fi
+  done
+  return 1
+}
 C_GUARDED=""
 if [ "${P_OK}" = 1 ] && [ -n "${P_SURF}" ]; then
-  C_GUARDED="$(while IFS= read -r c; do
+  C_GUARDED="$(while IFS=$'\t' read -r c pth; do
       [ -n "${c}" ] || continue
-      if grep -lqE "/meta:${c}([^a-z-]|$)" "${V}"/*-check.sh 2>/dev/null; then printf '%s\n' "${c}"; fi
+      case "${pth}" in .claude/skills/*) _pat=".claude/skills/${c}/" ;; *) _pat="${pth}" ;; esac
+      if _guard_links "${_pat}"; then printf '%s\n' "${c}"; fi
     done <<< "${P_SURF}")"
 fi
 
@@ -167,7 +215,9 @@ if [ "${FMT}" = --tsv ]; then
   printf 'guardas\tcom_selftest\t%s\nguardas\tfamilias_bancada\t%s\nguardas\tpassivo\t%s\n' "$(_n "${G_N}")" "$(_n "${G_FAM}")" "$(_n "${_gp}")"
   printf 'dissect\tdeclaradas\t%s\ndissect\tvencidas\t%s\n' "$(_n "${D_N}")" "$(_n "${D_VENC}")"
   printf 'doutrina\tcarregaram_e_existem\t%s\ndoutrina\tnunca_casaram\t%s\n' "$(_n "${I_N}")" "$(_n "${I_NEVER}")"
-  printf 'plano\tpronto\t%s\nplano\tbloqueado\t%s\nplano\tabertos_corpus\t%s\n' "$(_n "${PL_RDY}")" "$(_n "${PL_BLK}")" "$(_n "${BL_N}")"
+  _pr="$(_n "${PL_RDY}")"; _pb="$(_n "${PL_BLK}")"; [ "${PL_NA}" = 1 ] && { _pr="n/a"; _pb="n/a"; }
+  printf 'plano\tpronto\t%s\nplano\tbloqueado\t%s\nplano\tabertos_corpus\t%s\n' "${_pr}" "${_pb}" "$(_n "${BL_N}")"
+  printf 'pecas\tso_superficie_comandos\t%s\npecas\tso_superficie_skills\t%s\n' "$(_n "${P_1_CMD}")" "$(_n "${P_1_SKL}")"
   printf 'autoauditoria\tsinais\t%s\n' "$(_n "${S_N}")"
   # a lista do não-medido EXISTE no tsv — a 1ª versão não a tinha, e tudo que falhava virava 0
   while IFS=$'\t' read -r d m; do [ -n "${d}" ] && printf 'nao_medido\t%s\t%s\n' "${d}" "${m}"; done < "${UNM_FILE}"
@@ -200,22 +250,30 @@ printf '     medida: em 2026-10-02 a doutrina do dogfood estava carregada no CLA
 printf '     violou QUATRO vezes no mesmo dia. Achado sobre doutrina diz qual das duas coisas mediu.\n'
 
 printf '\n## 5. PLANO — o trabalho aberto\n'
-printf '  fila-pronta=%s · bloqueado=%s · abertos no corpus inteiro=%s\n' "$(_n "${PL_RDY}")" "$(_n "${PL_BLK}")" "$(_n "${BL_N}")"
+if [ "${PL_NA}" = 1 ]; then _pl="n/a no adotante (o plano do core não viaja)"; _pb="n/a"
+else _pl="$(_n "${PL_RDY}")"; _pb="$(_n "${PL_BLK}")"; fi
+printf '  fila-pronta=%s · bloqueado=%s · abertos no corpus inteiro=%s\n' "${_pl}" "${_pb}" "$(_n "${BL_N}")"
 
 printf '\n## 6. A IDADE DESTA PRÓPRIA AUDITORIA (REGRA 97)\n'
 # ⚠️ ✅ SÓ COM MEDIÇÃO: a 1ª versão imprimia "✅ fresca" quando o medidor QUEBRAVA, porque a contagem
 #    de sinais dava zero sobre uma saída vazia. Verde sem medição é o pior verde que existe.
-if [ "${S_OK}" != 1 ]; then printf '  ? NÃO MEDIDA — o medidor de idade não respondeu (ver a lista abaixo); nunca ✅ sem medição\n'
+if [ "${S_OPTOUT}" = 1 ]; then printf '  ? NÃO MEDIDA (opt-out: sem docs/analysis/) — este repo nunca registrou auditoria; nunca ✅ sem medição\n'
+elif [ "${S_OK}" != 1 ]; then printf '  ? NÃO MEDIDA — o medidor de idade não respondeu (ver a lista abaixo); nunca ✅ sem medição\n'
 elif [ "${S_N}" -gt 0 ]; then printf '  ⚠️ %s sinal(is): %s\n' "${S_N}" "${S_TXT}"
 else printf '  ✅ auto-auditoria fresca e sem delta populacional (medida)\n'; fi
 
 printf '\n## 7. CONFRONTO — os ALVOS, cruzando dimensões\n'
 if [ "${P_OK}" = 1 ]; then
-  printf '  · %s comandos com SÓ A SUPERFÍCIE (1/7) — os candidatos naturais da próxima forja\n' "$(_n "${P_1}")"
-  if [ -n "${C_GUARDED}" ]; then
-    printf '  · e destes, já VIGIADOS por guarda (a casa os cobra e não lhes deu peças):\n'
-    printf '%s\n' "${C_GUARDED}" | sed 's/^/      /'
+  printf '  · %s superfícies com SÓ A SUPERFÍCIE (1/7): %s comando(s) + %s skill(s) — os candidatos naturais da próxima forja\n' \
+    "$(_n "${P_1}")" "$(_n "${P_1_CMD}")" "$(_n "${P_1_SKL}")"
+  if [ -n "${P_SURF}" ]; then
+    printf '      comandos: %s\n' "$(awk -F'\t' '$2 !~ /^[.]claude\/skills\// {print $1}' <<< "${P_SURF}" | paste -sd' ' -)"
+    printf '      skills:   %s\n' "$(awk -F'\t' '$2 ~ /^[.]claude\/skills\// {print $1}' <<< "${P_SURF}" | paste -sd' ' -)"
   fi
+  if [ -n "${C_GUARDED}" ]; then
+    printf '  · e destes, já VIGIADOS por guarda (o caminho deles aparece em CÓDIGO de *-check.sh; citação em comentário ou mensagem não conta):\n'
+    printf '%s\n' "${C_GUARDED}" | sed 's/^/      /'
+  elif [ -n "${P_SURF}" ]; then printf '  · nenhum deles vigiado por guarda (elo estrutural: caminho em código de *-check.sh)\n'; fi
 else printf '  · peças NÃO MEDIDAS — sem alvos de forja nesta rodada\n'; fi
 if [ "${I_OK}" = 1 ] && [ -n "${I_NEVER_LIST}" ]; then
   printf '  · doutrina com `paths:` que NUNCA casou (escrita e nunca lida — ou recém-nascida):\n'

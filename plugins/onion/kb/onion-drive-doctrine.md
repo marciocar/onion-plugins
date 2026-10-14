@@ -17,7 +17,67 @@ O driver opera num **degrau declarado**, nunca acima:
 - **Nível 0** (auto sempre): atos reversíveis em worktree própria (branch/commit/PR/dogfood), `write(KG)` de append, **propor** ato-3.
 - **AUDIT** (o degrau da Fase 1): conduz um fio **até PR-verde sozinho**; **merge no main é 100% humano, em LOTE** num checkpoint.
 - **AUTOMATE** (Fase 2, gated): auto-merge só sob 3 pré-condições duras (enabler git-nativo · path-allowlist `git diff ∩ vendor = ∅` · política 100% mecânica, LLM veto-only).
+  **Decisão do maestro (2026-10-12, SAC-74): no AUTOMATE o merge é POR PADRÃO.** A sua ordem de
+  2026-08-18 ("até o final" = executar → commit → PR → **MERGE**, sem pedir de novo) vira degrau.
+  As 3 pré-condições ganham nome concreto nesta casa:
+  - o **enabler** é o `ops/pr-merge-verified.sh` (core-only), o único caminho de merge; o hook `merge-gate` veta
+    qualquer outro com exit 2;
+  - o merge **em série** (o lote) é `bash ops/merge-serial.sh <PR>...` (core-only), na ordem dos argumentos: duas séries não mergeiam ao mesmo tempo (lock só no rebase+merge, CI esperado fora dele) — decisão em `docs/evolution/research/merge-process-onion-2026-10/merge-process-onion-2026-10.kg.yaml#C_OPCAO_C_MERGE_SERIAL_IN_OPS`;
+  - a **bancada roda em dois níveis, sem fila** (passo D, `…merge-process-onion-2026-10.kg.yaml#C_OPCAO_D_TWO_TIER_BENCH_NO_QUEUE`):
+    - **no PR**, só as famílias que o diff toca (`ops/testing/selftest-pr-selection.sh` (core-only), que usa a seleção do pre-commit pelo range `base...head`);
+    - cai na **completa**, com o porquê no log, quando o mapa não classifica um arquivo tocado, quando o diff toca a bancada ou a infra do CI (`lint-selftest.sh`, `.github/workflows/*`, `ops/testing/*` (core-only)), ou com a label `ci:full`;
+    - **no push ao main**, a completa. Se ela reprova, `ops/testing/main-bench-alarm.sh` (core-only) abre a issue de título fixo com o commit culpado e prepara `revert/<sha12>`, **sem mergear**. O merge do revert passa pelo caminho verificado;
+    - **o main vermelho não tem um culpado por commit** (defeito medido em 2026-10-13, `…merge-process-onion-2026-10.kg.yaml#E_ALARME_CULPA_SO_A_PRIMEIRA_QUEBRA_2026_10_13`). A completa reprovou em `ff5abe51` (issue #1086, revert #1085). O commit seguinte, `825e93f6`, só herdou a quebra, e o alarme abriu um 2º revert (#1087) contra ele. A causa era o `docs/backlog.md` fora de sincronia, consertado para a frente no #1088. A regra agora:
+      - a **assinatura** da quebra é o conjunto de famílias com falha, lido dos relatórios TSV das faixas (o job `alarme-main` baixa os artefatos). Cada post da issue guarda a sua num marcador `<!-- onion-alarm v1 … -->`. Só conta marcador de post do Actions, lido pela autoria que o forge informa: o repo é público, e um marcador colado por terceiro calaria o revert;
+      - **1º vermelho** (sem issue aberta): issue + revert, como antes;
+      - **issue já aberta e só famílias conhecidas**: só comenta com o commit, o resultado e as famílias. **Sem revert**, porque o commit herdou a quebra;
+      - **família nova**: é uma quebra sobre a quebra. Comenta, nomeia o commit como **suspeito novo** e **prepara o revert dele**. Preparar é reversível e nunca mergeia, e quando a 1ª quebra sair a 2ª continua. Se o commit é o merge de um revert, só nomeia;
+      - **commit mais velho que o culpado registrado**, com as mesmas famílias (dois pushes concorrentes, a bancada do mais velho terminou depois): ele é o culpado e o revert é dele;
+      - **issue ilegível** (não consigo ler, ela não tem marcador ou o 1º alarme não teve assinatura) **ou assinatura atual ilegível**: declara o porquê e **não abre revert às cegas**;
+      - issue **fechada à mão** com o main vermelho continua valendo como referência. Duas issues de 1º vermelho concorrentes se fundem na de número menor;
+      - o **verde** fecha a issue e, **depois**, fecha com comentário os PRs de revert superados. São os que batem nas três condições: head `revert/<12 hex>`, autor `app/github-actions` e sha12 citado na issue;
+    - **localmente, nunca a completa** (decisão do maestro de 2026-10-13, `D_BANCADA_SEMAFORO_DA_MAQUINA_SEM_COMPLETA_LOCAL` no grafo da decisão de faixas): o pre-commit e o `ops/pr-finalize.sh` (core-only) rodam a **faixa local** (`lint-selftest.sh --local`). Mesmo quando o diff toca a bancada, os workflows ou `ops/testing/*`, ela roda só quem cita os arquivos tocados, os blocos mudados da bancada e um núcleo local fixo (`selftest_lanes`, `selftest_selection`, `two_tier_bench`, `machine_slots`, `shell_pipefail_robustness`), e declara que a completa é do CI. A completa local é opt-in: `ONION_SELFTEST_FULL=1` ou `--full`. E toda bancada da máquina divide **N = nproc vagas**, um semáforo `flock` do usuário que vale para todas as worktrees e sessões. A espera por vaga sai no sumário. Medido no dia: cinco agentes com a completa em 8 vCPUs levaram uma bancada de ~8 min a 34+, e o runner matou dois pre-commits;
+    - **janela declarada:** entre o merge e o merge do revert, o main pode estar quebrado (a completa leva da ordem de 25 min por faixa, mais o merge verificado). Com o alarme aberto, só se mergeia o conserto;
+    - os checks que o ruleset do main exige são os estáveis: `selftest-gate` e `lint-onion-artifacts`. O ruleset é aplicado por `ops/apply-ruleset-main.sh` (core-only) e o admin tem bypass **só em merge de PR** (`bypass_mode: pull_request`, decisão do maestro de 2026-10-13): o merge verificado passa com a dispensa nomeada, mas o push direto ao main fica barrado também no forge, inclusive para o dono — uma 2ª camada sobre o hook exit 2 e o caminho verificado;
+  - **auto-rebase limpo não espera o CI do head novo** (decisão do maestro de 2026-10-13, «A agora, B se precisar», `…merge-process-onion-2026-10.kg.yaml#D_MERGE_SEM_CI_APOS_REBASE_LIMPO`). Medido: cada merge da fila levava 20–25 min, quase tudo esperando o CI do head rebaseado. Agora o verificado mergeia na mesma chamada quando **todas** as condições valem; qualquer uma que falha volta à espera de antes (rc 4 na série):
+    - o rebase não teve conflito de fonte (conflito só de projeção gerada conta como limpo: o `pr-finalize` a regenera e roda o lint);
+    - a worktree estava no head que o PR mostrava (verde de outro head não vale, como depois de um force-push);
+    - os checks que o ruleset exige estavam verdes no head **anterior**, e nenhum outro check falhou sem dispensa;
+    - o que a main trouxe entre o merge-base velho e o novo não toca arquivo do PR, fora as projeções geradas;
+    - nenhum alarme de main quebrado está aberto (com o alarme aberto, só o conserto entra, e nunca sem CI);
+    - o ruleset não tem regra além dos checks (o bypass contorna o ruleset inteiro; com outra regra, espera);
+    - não foi passado `--wait-ci-after-rebase` (o opt-out, também aceito pelo `merge-serial.sh`).
+    Os gates rodam contra o head anterior. O ruleset exige os checks **no head do PR**, e um head recém-empurrado não tem nenhum, então o merge vai pelo bypass de admin em PR, com `--match-head-commit` no head novo: se alguém empurrar depois da decisão, o forge recusa. A decisão sai no log e no comentário de auto-rebase do PR. **Janela declarada:** dois PRs que mudam arquivos diferentes e se quebram semanticamente entram os dois, e só a completa do main pega. O lote com bissecção (B) fica gated em `#Q_MERGE_LOTE_COM_BISSECCAO`, e o gatilho é o main quebrar por combinação de PRs, contado pelas issues do alarme;
+  - a **path-allowlist** é a parada dura "path vendorizado/outward-facing" (REGRA 36 e REGRA 30);
+  - a **política mecânica** são as **paradas duras**, todas PARA:
+    - decisão não tomada;
+    - Elenxo reprovado;
+    - CI vermelho inesperado (o veredito do revisor sem crédito é dispensa NOMEADA, não silêncio);
+    - repo alheio (I3);
+    - budget esgotado;
+    - ciclo na cadeia.
+
+  ⚠️ **O degrau só abre quando as paradas duras forem predicados executáveis com mutante (SAC-114).**
+  Antes disso o `/onion:drive` segue em AUDIT. Merge por padrão sobre parada em prosa é o carimbo
+  automático que esta doutrina existe para matar.
 - **MOAT** (nunca): deploy · escrever repo alheio (I3) · merge de path vendorizado/outward-facing · **agendar por relógio (W7)**. O driver é **maestro-invocado**, nunca cron/`/loop` sobre si.
+
+  **O que do MOAT é VETO e o que segue PROSA (2026-10-13).** Até 2026-10-13 só o merge no main tinha veto
+  (`pretooluse-merge-gate.sh`). Desde então o hook `pretooluse-moat-gate.sh` (armado só no core) veta **por ALVO**, nunca por
+  vocabulário (`rsync`, `systemctl` e `git commit` são legítimos fora de deploy). Os alvos são dado versionado:
+  `ops/moat-targets.tsv` (core-only) e o `local_path` de `docs/evolution/federation/members.yaml`. A família de
+  bancada `moat_gate` prova cada linha da coluna "veto" com um caso e um mutante executado.
+
+  | item | veto (exit 2, antes de executar) | segue prosa (fronteira declarada) |
+  |---|---|---|
+  | deploy | `systemctl`/`service`/`docker` que muda unidade `onion-vps-*`, `onion-adopt-*` ou `caddy`; escrita (`cp`, `mv`, `install`, `rsync`, `tee`, `ln`, `rm`, `sed -i`, `dd`, `tar -x`, redirecionamento…) em caminho servido; `git checkout/reset/pull…` numa árvore servida; script FORA do projeto (ou não rastreado) que faça isso, lido e julgado | script versionado do projeto (é assim que o wrapper `ops/…` passa); os 3 serviços que servem do checkout principal do core; `docker compose`; ssh; `systemctl daemon-reload` |
+  | repo alheio (I3) | `git push` num clone de membro registrado; `git push` cujo destino é provadamente outro repositório | commit, branch e config LOCAIS num clone de adotante (é o `meta:adopt --update`); `gh` escrevendo em repo alheio |
+  | relógio (W7) | `crontab` que instala/edita/remove; `at`/`batch`; `systemd-run` com timer; `systemctl` que liga `.timer`; escrita em `/etc/cron*`, `/var/spool/cron` ou num `.timer` | as ferramentas `CronCreate`/`ScheduleWakeup` do Claude Code (o `/loop` é superfície legítima do maestro, e o hook não sabe quem o pediu) |
+  | merge de path vendorizado | o merge no main (merge-gate) | o resto segue PARA em prosa |
+
+  No adotante o hook **se desarma**: sem `ops/moat-targets.tsv` (core-only) não há alvo, e o MOAT do adotante segue
+  prosa. Escape = o maestro roda fora da sessão (`!` no prompt). Não há variável de bypass: escape que o modelo
+  escreve na própria string seria gate textual com outro nome.
 
 Alinhamento SOTA 2026: GAIE (arXiv 2606.22484) = os mesmos 3 tiers; Loop Engineering = *stopping-conditions + verificador determinístico SEPARADO checando o objetivo a cada turno, nunca o auto-relato* (= `kg-realign --check` / `kg-radar`, `declarado≠verificado`).
 
@@ -58,6 +118,22 @@ P6   PARA             nenhuma passada nova enquanto o checkpoint pende (batch-co
 | **execution** | `decision` (reversível) | trabalho em worktree até **PR-verde** + dogfood | orquestração de execução (molde de fases do `/onion-engineering:work`, até 1 PR) | branch/PR + evidência |
 | **decision** | `decision` (não-tomada) | enquadrar + Elenxo, **propor** a chamada | `adversarial-verification` | `decision` PROPOSTO (não selado) |
 
+### 3.1 Spike que mede hipótese de produto (KIND research ou verification)
+
+Quando o nó `Q_` conduzido é uma **hipótese de produto** testada por spike ("o adaptador X propõe nós
+que valem a pena?"), o avanço exige, **num commit anterior à amostra**:
+
+1. **critério de morte com denominador fixo** — escrito no próprio nó ou ao lado, com o proponente e o
+   placar. Trocar o denominador depois de medir é mover a régua: num adotante, a 1ª leitura passou de
+   26,6% para 68% trocando "todas as propostas" por "as julgadas", e o Elenxo a derrubou;
+2. **uma medida de VALOR com avaliador cego** — um agente separado, sem acesso à hipótese, marca cada
+   proposta MANTER ou DESCARTAR. Sobrevivência à selagem **não** basta, porque premia a proposta
+   trivial (100% numa cópia, 0 de 8 no valor, na mesma hipótese).
+
+A ordem fica verificável no `git log` (critério antes da amostra). A pergunta que o Elenxo faz a esse
+critério é a da etapa 3 em [`onion-elenxo-doctrine.md`](onion-elenxo-doctrine.md) ("o critério separa a
+proposta útil da trivial?").
+
 ## 4. Tabela de SELAGEM (postura AUDIT — mata o carimbo-automático)
 
 | Evento | Ação | AUTO vs PARA |
@@ -69,10 +145,10 @@ P6   PARA             nenhuma passada nova enquanto o checkpoint pende (batch-co
 | **REFUTED/SUPERSEDED de nó NUNCA SELADO** (§4.1) | mesmo ato, mas o par nasce e cai no MESMO PR | **AUTO nas 4 precondições** (`kg-seal-exception.sh`); a 4ª — o flip nomeado na `drive_checkpoint_note` do lote — mecanizada em 2026-10-04 |
 | verification **UNVERIFIABLE** | `blocked_by`, **não carimba** | **AUTO** (não-escrita; 1ª classe) |
 | execution → PR-verde | conduz em worktree | **AUTO até o PR** |
-| **merge no main** | — | **PARA** (100% humano, em lote) |
+| **merge no main** | — | **AUDIT: PARA** (100% humano, em lote) · **AUTOMATE: AUTO** pelo `ops/pr-merge-verified.sh` (core-only), salvo parada dura (§0; decisão de 2026-10-12, aberta só com o SAC-114) |
 | **decisão não-tomada** | frame + Elenxo + propõe | **PARA** (selo humano) |
 | drift tipo-(c) estrutural | novo nó + `SUPERSEDES` datado | **AUTO** (realign repara determinístico) |
-| **MOAT** | — | **NUNCA / PARA** |
+| **MOAT** | — | **NUNCA / PARA** (parte é veto por alvo desde 2026-10-13; a tabela do §0 diz qual) |
 
 **Invariante que amarra:** *o único caminho para um `verified_at` novo passa por uma medição executada*
 (contrato do `/onion:kg-freshness`). O driver **apenda** evidência; quem **flipa** o status de verdade

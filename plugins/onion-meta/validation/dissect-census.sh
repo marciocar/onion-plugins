@@ -26,6 +26,8 @@
 #
 # Uso:  bash ${CLAUDE_PLUGIN_ROOT}/validation/dissect-census.sh [<repo>] [--markdown|--tsv]
 # Exit: 0 = censo emitido (inclusive "zero dissecação", que é resposta) · 3 = NÃO PUDE MEDIR.
+#       Os PLANOS de absorção (N4) têm leitor próprio, do lado do forge: dissect-plans.sh — este
+#       script viaja no plugin onion-meta e não pode depender do forge-census, que não viaja.
 # Determinístico, sem LLM. Exercitado por lint-selftest.sh (run_dissect_selftests).
 # ===========================================================================
 set -uo pipefail
@@ -71,9 +73,13 @@ for rel in "${GRAPHS[@]}"; do
 
   verdict="$(sed -n 's/^[[:space:]]*\(x_\)\{0,1\}dissect_verdict:[[:space:]]*["'"'"']\{0,1\}\([a-z]*\).*/\2/p' "${f}" | head -1)"
   [ -n "${verdict}" ] || verdict="-"
-  baseline="$(sed -n 's/^[[:space:]]*baseline:[[:space:]]*\([0-9-]\{10\}\).*/\1/p' "${f}" | head -1)"
+  # ⚠️ DATA ENTRE ASPAS é a forma que a gramática EXIGE desde o contrato v3 (`yaml.unquoted-date`),
+  #    e a 1a versão deste sed só lia a data NUA: a 2a dissecação do corpus (conductor-2026-10,
+  #    escrita pela gramática) saiu NAO-DECLARADO no dogfood do SAC-77, com review_after presente.
+  #    A aspa (simples ou dupla) é opcional na leitura; o grafo herdado sem aspa segue lido.
+  baseline="$(sed -n 's/^[[:space:]]*baseline:[[:space:]]*["'"'"']\{0,1\}\([0-9-]\{10\}\).*/\1/p' "${f}" | head -1)"
   [ -n "${baseline}" ] || baseline="-"
-  review="$(sed -n 's/^[[:space:]]*review_after:[[:space:]]*\([0-9-]\{10\}\).*/\1/p' "${f}" | head -1)"
+  review="$(sed -n 's/^[[:space:]]*review_after:[[:space:]]*["'"'"']\{0,1\}\([0-9-]\{10\}\).*/\1/p' "${f}" | head -1)"
   [ -n "${review}" ] || review="-"
 
   # FRESCOR: comparação lexical de ISO-8601 é correta e dispensa `date -d` (que difere entre

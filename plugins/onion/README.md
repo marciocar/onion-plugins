@@ -2,7 +2,7 @@
 
 Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + radar soberano + kg-freshness), sessões e diário, orquestração de subagentes, condução (wizard/onboarding/retro), validação de meta-specs e os adapters SDAAL de task-manager e forge.
 
-**Versão** `0.1.326` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.327` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -101,7 +101,7 @@ Hooks são determinísticos (bash) e podem VETAR uma ação com `exit 2` — é 
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `9fe4533b1a36` |
+| tree_sha (hash do conteúdo das fontes) | `163a008e152a` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
@@ -109,7 +109,7 @@ Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT e
 
 ## Comandos do core citados (não distribuídos neste plugin)
 
-Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `engineer:work`, `meta:adopt`, `meta:co-evolve`, `meta:co-relay`, `meta:federation-check`, `meta:personality-sync`, `validate:collab`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
+Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `engineer:work`, `meta:adopt`, `meta:co-evolve`, `meta:co-relay`, `meta:decide`, `meta:federation-check`, `meta:personality-sync`, `validate:collab`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
 
 ## Funciona melhor com
 

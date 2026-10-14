@@ -27,7 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse-env-guard.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse-env-guard.sh\"",
+            "onFailure": "block"
           }
         ]
       }

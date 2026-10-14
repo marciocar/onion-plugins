@@ -84,6 +84,12 @@ interface CreateTaskInput {
   
   /** Estimativa de tempo (minutos) */
   timeEstimate?: number;
+
+  /** Estimativa de complexidade (story points) — grandeza distinta do tempo. Capacidade estimate.points */
+  storyPoints?: number;
+
+  /** Nível do item: 'task' (default em createTask) · 'epic' (createEpic) · 'subtask' (createSubtask) */
+  level?: ItemLevel;
 }
 ```
 
@@ -123,6 +129,9 @@ interface UpdateTaskInput {
   
   /** Nova estimativa */
   timeEstimate?: number;
+
+  /** Novos story points */
+  storyPoints?: number;
 }
 ```
 
@@ -162,6 +171,48 @@ interface SearchQuery {
   
   /** Direção da ordenação */
   orderDirection?: 'asc' | 'desc';
+}
+```
+
+---
+
+## 🧩 Tipos da Onda 2 (SAC-63)
+
+Os tipos que as capacidades opcionais da [interface](./interface.md) usam. Quem não implementa a
+capacidade não precisa deles; a declaração `adapters/<provedor>.capabilities.tsv` diz quem implementa.
+
+```typescript
+/** Nível do item na hierarquia canônica. A profundidade máxima de subtask NÃO foi ancorada para nenhum provedor. */
+type ItemLevel = 'epic' | 'task' | 'subtask';
+
+/** Cursor opaco de paginação: o consumidor só o repassa. Pode EXPIRAR (Jira Cloud: 7 dias; Asana: "after some time"). */
+type PageCursor = string & { readonly __opaque: unique symbol };
+
+/** Uma página de resultados; next = null quando acabou. */
+interface Page<T> { items: T[]; next: PageCursor | null }
+
+/** Anexo a enviar. */
+interface AttachmentInput { filename: string; contentType: string; bytes: Uint8Array }
+interface AttachmentOutput { id: string; filename: string; url?: string }
+
+// ── Leitura completa (SAC-116, 2026-10-12): entradas cronológicas, mãe completa + irmãs, arquivos em quarentena
+interface ActivityEntry { id: string; createdAt: string; actor: string | null; changes: Array<{ field: string; from?: unknown; to?: unknown }> }
+interface SubtaskView { id: string; identifier: string; title: string; status: TaskStatus; storyPoints?: number | null; descriptionSummary: string; subtasks: SubtaskView[] }
+interface HierarchyContext { role: 'parent' | 'subtask' | 'standalone'; parent: TaskOutput | null; siblings: SubtaskView[]; subtasks: SubtaskView[]; truncated: boolean }
+interface InlineRef { n: number; url: string; kind: 'image' | 'file'; alt: string; origin: string /* description | comment:<id> | attachment:<id> */ }
+interface AttachmentListing { files: InlineRef[]; links: Array<{ id: string; title: string; url: string; downloadable: boolean }> }  // links: no Linear, Attachment = LINK
+interface DownloadedAttachment { path: string; mime: string; size: number; sha256: string; origin: { issue: string; url: string; ref: string }; untrusted: true }
+
+/** Sprint (Jira, ClickUp) ou cycle (Linear). */
+interface Iteration { id: string; name: string; startDate?: string; endDate?: string }
+
+/** Vínculo canônico. Tipo sem equivalente no provedor é ERRO do adapter, nunca aproximação silenciosa. */
+type LinkType = 'blocks' | 'blocked_by' | 'relates' | 'duplicates';
+
+/** Resultado de lote: por item, porque lote parcial existe (o adapter fatia pelo limite declarado). */
+interface BulkResult<T> {
+  succeeded: T[];
+  failed: Array<{ index: number; error: string }>;
 }
 ```
 
@@ -238,6 +289,10 @@ interface TaskOutput {
   
   /** Tempo gasto (minutos) */
   timeSpent?: number;
+
+  /** Story points LIDOS do provedor. Capacidade estimate.points_read (not_implemented nos 5 adapters em
+   *  2026-10-11): ausente = sem pontos, e a derivação `progress` (progress.sh) cai na contagem declarando. */
+  storyPoints?: number;
 }
 ```
 
@@ -433,7 +488,7 @@ const STATUS_MAPPING: Partial<Record<TaskManagerProvider, Record<TaskStatus, str
 
 ---
 
-**Versão**: 1.1.0
+**Versão**: 1.2.0
 **Criado em**: 2025-11-24
-**Atualizado em**: 2026-06-13
+**Atualizado em**: 2026-10-11 (Onda 2: `storyPoints`, `level` e os tipos das capacidades opcionais)
 
