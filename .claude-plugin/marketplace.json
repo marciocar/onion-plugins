@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Marketplace publico do Sistema Onion — o framework operacional como plugins instalaveis (/plugin marketplace add).",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "pluginRoot": "./plugins"
   },
   "plugins": [
