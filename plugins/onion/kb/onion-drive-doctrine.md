@@ -90,6 +90,32 @@ O driver opera num **degrau declarado**, nunca acima:
   | relógio (W7) | `crontab` que instala/edita/remove; `at`/`batch`; `systemd-run` com timer; `systemctl` que liga `.timer`; escrita em `/etc/cron*`, `/var/spool/cron` ou num `.timer` | as ferramentas `CronCreate`/`ScheduleWakeup` do Claude Code (o `/loop` é superfície legítima do maestro, e o hook não sabe quem o pediu) |
   | merge de path vendorizado | o merge no main (merge-gate) | o resto segue PARA em prosa |
 
+  **Motor que escreve por argumento (2026-10-15).** O motor de convites A2A (`a2a-invite.sh`) escreve o arquivo que
+  recebe em `--file`, e o juiz só via escrita no verbo: medido, o motor chamado direto com `--file` no arquivo de
+  convites do bridge passava com rc 0. Desde então todo valor de `--file`, `--invite-out` e `--token-out` de
+  `create`/`revoke` (sem `--dry-run`) é julgado como destino de escrita, versionado ou não, e o motor é reconhecido pelo
+  nome (também pelo alvo do symlink) ou pelo marcador `MOAT-ARG-WRITER:` no corpo (cópia renomeada). Script não
+  versionado que chama o motor e cita um alvo fecha; cópia de script versionado não herda a fronteira; o modo de teste
+  do wrapper (`ONION_A2A_LIVE_TEST`) na linha de comando fecha. Teto: motor renomeado sem o marcador, `xargs -I` e
+  `python3 -c` chamando o motor. A única escrita no arquivo
+  de convites de produção é o wrapper `ops/a2a-invite-live.sh` (core-only): trava do update do bridge, ensaio por
+  padrão (`--apply` escreve), backup cifrado antes, `check` e prova por contagem depois, rollback impresso.
+
+  **A fila A2A do bridge (2026-10-15).** A fila de sinais verificados (`data/a2a-pending` do bridge, a do core na
+  raiz e a de cada hub num subdiretório) também é caminho servido, com linha própria no
+  `ops/moat-targets.tsv` (core-only): o `mv` ou o `rm` direto nela, como a conta do serviço, é vetado nomeando o
+  wrapper `ops/a2a-queue-live.sh` (core-only). Ele lista (nome, remetente, recebido_em, verified e o aceite, nunca o corpo do sinal), copia um
+  registro para um arquivo 0600 do operador, que é o que o `a2a-accept.sh` lê, e arquiva: move para
+  `<fila>/_archived/`, nunca apaga, com a mesma trava, ensaio por padrão, backup cifrado antes, prova por contagem e
+  sha256 depois e rollback impresso. Só arquiva registro já aceito, isto é, cujo `taskId` está no frontmatter de um
+  doc do inbox do core; o resto exige `--force-unaccepted` com motivo, que vai ao `archive.log`. Registro de hub
+  conta como não aceito, porque o hub aceita no repo dele. Na mesma rodada o juiz ganhou um fecho: a cópia não
+  versionada do wrapper da fila (reconhecida pelo nome no código, como o motor de convites) com um alvo do MOAT no
+  corpo fecha. Medido: ela passava com rc 0, porque a escrita sai por `as_svc mv "${SRC}" …` e o juiz lê a função,
+  não a chamada. Teto declarado, classe pré-existente: função, array ou alias que embrulha `sudo`, interpretador
+  (`python3 -c`, `perl -e`, `node -e`), `rsync --remove-source-files`, `tar --remove-files` e `sh -c` com o alvo
+  em `$0` seguem fora do juiz; e "versionado" quer dizer rastreado, não rastreado e limpo.
+
   No adotante o hook **se desarma**: sem `ops/moat-targets.tsv` (core-only) não há alvo, e o MOAT do adotante segue
   prosa. Escape = o maestro roda fora da sessão (`!` no prompt). Não há variável de bypass: escape que o modelo
   escreve na própria string seria gate textual com outro nome.

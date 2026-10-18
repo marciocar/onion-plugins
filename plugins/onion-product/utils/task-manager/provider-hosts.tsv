@@ -1,7 +1,7 @@
 # provider-hosts.tsv — os hosts de API de cada provedor de task manager (SSOT, SAC-75, 2026-10-12).
 #
 # Quem lê: o veto `.claude/hooks/pretooluse-direct-provider-api.sh` (comando Bash da sessão) e a
-# REGRA 105 (`.claude/validation/direct-provider-api-check.sh`, arquivo rastreado). Os dois julgam
+# REGRA 105 (`${CLAUDE_PLUGIN_ROOT}/validation/direct-provider-api-check.sh`, arquivo rastreado). Os dois julgam
 # "chamada direta à API do provedor FORA do adapter" — o adapter (este diretório) é o único lugar
 # onde ela é legítima.
 #
