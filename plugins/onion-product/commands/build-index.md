@@ -3,9 +3,9 @@ name: build-index
 description: Gerar e atualizar índices de documentação em docs/ a partir da estrutura real (contagens escaneadas, nunca hardcoded).
 category: docs
 tags: [index, navigation, documentation, spec-as-code]
-version: "3.1.0"
-updated: "2026-06-13"
-allowed-tools: Read Write Edit Glob Grep Bash(find *) Bash(ls *) Bash(wc -l *)
+version: "3.2.0"
+updated: "2026-10-20"
+allowed-tools: Read Write Edit Glob Grep Bash(find *) Bash(ls *) Bash(wc -l *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/utils/scope/resolve-context-dir.sh *)
 argument-hint: "[seção opcional: knowledge-base | business-context | technical-context | compliance-context | onion | meta-specs]"
 ---
 
@@ -52,7 +52,10 @@ Não assuma esta lista — confirme com `find docs -maxdepth 1 -type d`. Tipicam
 
 ### `/onion-product:build-index <seção>` — reconstrói o `index.md` daquela seção
 
-1. Resolver a pasta (`docs/<seção>/`); abortar com aviso se não existir.
+1. Resolver a pasta (`docs/<seção>/`); abortar com aviso se não existir. Para os **3 contextos**, a
+   pasta é a que `bash ${CLAUDE_PLUGIN_ROOT}/utils/scope/resolve-context-dir.sh <business|technical|compliance>`
+   imprime: o repo pode declará-la em `.claude/onion-context.yaml` (ex.: `compliance: docs/compliance`),
+   e então `docs/compliance-context/` não existe e não é erro. Saída `3` = declaração inválida: pare.
 2. Percorrer arquivos e subpastas reais; **contar dinamicamente**.
 3. Gerar/atualizar `docs/<seção>/index.md` com links relativos corretos.
 4. Para os **3 contextos** (`business-context`, `technical-context`, `compliance-context`): refletir o **estado real** — no framework são templates (só `README.md`, marcar como "template, populado no projeto-alvo"); num projeto-alvo, indexar o conteúdo gerado pelos comandos `build-*-docs`.
@@ -75,6 +78,9 @@ Não assuma esta lista — confirme com `find docs -maxdepth 1 -type d`. Tipicam
 ## Notas
 
 - **Contagens vêm do scan**, nunca de memória — releia a estrutura a cada execução.
+- **O índice da KB é conferido no lint** (REGRA 110, `${CLAUDE_PLUGIN_ROOT}/validation/kb-index-check.sh`): cada `## … (N)`, as
+  estatísticas e a árvore contra o disco, e cada arquivo de conteúdo precisa de entrada. Depois de regenerar
+  `docs/knowledge-base/index.md`, rode `bash ${CLAUDE_PLUGIN_ROOT}/validation/kb-index-check.sh .` — saída vazia é o "em dia".
 - Os 3 contextos são **spec-as-code** (`architecture.md §1.3`): vazios/template no framework, populados no projeto-alvo.
 - Este comando **não cria conteúdo** de contexto — para isso use `/onion-product:build-business-docs`, `/onion-product:build-tech-docs`, `/onion-compliance:build-compliance-docs`.
 

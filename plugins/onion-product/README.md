@@ -2,7 +2,7 @@
 
 Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnóstica ao provider, story points, extração de reuniões, apresentações e documentação de contexto (business/technical context, C4 + Mermaid, engenharia reversa, docs-health).
 
-**Versão** `0.1.93` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.94` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -37,9 +37,9 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 |---|---|
 | `/onion-product:analyze-pain-price` | Análise de Dor e Precificação do Cliente. |
 | `/onion-product:branding` | Branding e Posicionamento de Marca. |
-| `/onion-product:build-business-docs` | Gerar arquitetura de contexto de negócio em `docs/business-context/`. |
+| `/onion-product:build-business-docs` | Gerar arquitetura de contexto de negócio na pasta declarada (default `docs/business-context/`). |
 | `/onion-product:build-index` | Gerar e atualizar índices de documentação em docs/ a partir da estrutura real (contagens escaneadas, nunca hardcoded). |
-| `/onion-product:build-tech-docs` | Gerar arquitetura de contexto técnico em `docs/technical-context/`. |
+| `/onion-product:build-tech-docs` | Gerar arquitetura de contexto técnico na pasta declarada (default `docs/technical-context/`). |
 | `/onion-product:check` | Verificar requisitos contra meta-specs do projeto. |
 | `/onion-product:checklist-sync` | Sincronizar e monitorar checklists do Task Manager (checklist nativo é capacidade resolvida pelo adapter). |
 | `/onion-product:collect` | Coletar novas ideias de features ou bugs para o projeto. |
@@ -105,7 +105,7 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `afe5018ddcae` |
+| tree_sha (hash do conteúdo das fontes) | `e329c7d73e2e` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 

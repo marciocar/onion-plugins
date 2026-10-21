@@ -2,7 +2,7 @@
 
 Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK) via agentes especialistas + build-compliance-docs. Auto-adapta ao compliance-context do consumidor (SDAAL).
 
-**Versão** `0.1.44` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `gold`
+**Versão** `0.1.45` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `gold`
 
 ## Instalar
 
@@ -35,7 +35,7 @@ Invocação: `/onion-compliance:<comando>` (namespace do plugin).
 
 | Comando | O que faz |
 |---|---|
-| `/onion-compliance:build-compliance-docs` | Gerar arquitetura de compliance em `docs/compliance-context/`. |
+| `/onion-compliance:build-compliance-docs` | Gerar arquitetura de compliance na pasta de contexto declarada (default `docs/compliance-context/`). |
 
 ## Agentes
 
@@ -63,7 +63,7 @@ Invocação: `/onion-compliance:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `ed4e9a910f33` |
+| tree_sha (hash do conteúdo das fontes) | `cd3ccad9d123` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
