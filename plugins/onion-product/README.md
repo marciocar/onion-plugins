@@ -2,7 +2,7 @@
 
 Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnóstica ao provider, story points, extração de reuniões, apresentações e documentação de contexto (business/technical context, C4 + Mermaid, engenharia reversa, docs-health).
 
-**Versão** `0.1.94` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.95` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -53,7 +53,7 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 | `/onion-product:feature` | Criar task de feature no gerenciador configurado para planejamento e backlog. |
 | `/onion-product:help` | Ajuda interativa para comandos de documentação Onion. |
 | `/onion-product:light-arch` | Design de arquitetura leve para features. |
-| `/onion-product:presentation` | Criação de apresentações profissionais via Gamma.app. |
+| `/onion-product:presentation` | Ponte opcional para o serviço Gamma (externo, pago): apresentações via Gamma.app. |
 | `/onion-product:refine-vision` | Refinar visão e estratégia do produto/projeto. |
 | `/onion-product:refine` | Refinar requisitos através de perguntas de esclarecimento. |
 | `/onion-product:reverse-consolidate` | Engenharia reversa de projetos para gerar documentação consolidada. |
@@ -76,7 +76,7 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 | `@clickup-specialist` | Especialista técnico em ClickUp (API-first; MCP opcional) para automações avançadas e otimizações de performance. |
 | `@docs-reverse-engineer` | Especialista em engenharia reversa de projetos para análise estrutural e documentação. |
 | `@extract-meeting-specialist` | Especialista em aplicar o framework EXTRACT para transformar transcrições de reuniões em conhecimento estruturado. |
-| `@gamma-api-specialist` | Especialista em Gamma.App API para criação automatizada de apresentações e conteúdo com IA. |
+| `@gamma-api-specialist` | Especialista na ponte opcional para o serviço Gamma (externo, pago): API Gamma.App para apresentações com IA. |
 | `@jira-specialist` | Especialista técnico em Jira (Cloud e Server/DC) via REST API v3/v2 para automações avançadas, JQL otimizado, workflows com transitions, bulk operations e ADF. |
 | `@meeting-consolidator` | Especialista em consolidar, classificar, divergir e convergir múltiplas reuniões. |
 | `@mermaid-specialist` | Especialista em diagramas Mermaid para documentação Markdown renderizada em GitHub, IDEs (VS Code/Cursor com extensões) e Mermaid Live Editor. |
@@ -105,7 +105,7 @@ Invocação: `/onion-product:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `e329c7d73e2e` |
+| tree_sha (hash do conteúdo das fontes) | `4c29cd45e10b` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
@@ -113,7 +113,7 @@ Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT e
 
 ## Funciona melhor com
 
-Comandos deste plugin citam: `onion`, `onion-compliance`, `onion-engineering`, `onion-meta`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
+Comandos deste plugin citam: `onion`, `onion-compliance`, `onion-design`, `onion-engineering`, `onion-meta`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
 
 ## Licença
 

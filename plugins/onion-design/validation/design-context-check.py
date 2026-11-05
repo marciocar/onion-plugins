@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""design-context-check.py — o checador da vertical de design sobre o grafo do design-context.
+
+Faz as duas checagens que o gate do contrato KG-SSOT (kg_validate --corpus, kg_trace) NÃO faz, medidas no
+laboratório do estudo da curadoria (design-setup-2026-10, emenda F, casos 5, 6 e 9):
+
+1. LOCATOR DE TOKEN, SÓ A PARTE DE DESIGN. Desde a kg-ssot 4.35.0 o `kg_trace check` segue o
+   `provenance.locator` em JSON Pointer dentro do .json da fonte (integrity.trace-locator-missing, na REGRA 55
+   (O `trace:` de um nó APONTA para alvo que EXISTE)): com `--delegate-locator`, que o .sh passa SÓ quando o
+   kg_trace.py que a REGRA 55 usa tem o locator, o token que some de dentro do JSON e o JSON ilegível são dele,
+   e esta checagem não os repete. Sem a flag (vendor anterior à 4.35.0 no adotante), ela segue acusando os dois:
+   delegar a um juiz que não julga seria calar. Fica aqui, sempre, o que é de DESIGN: o destino do ponteiro que
+   RESOLVE tem de ser um TOKEN DTCG (um objeto com "$value", ou "$root"), não um grupo; o locator que não é JSON
+   Pointer numa fonte de tokens (o produto o conta como `not_pointer`, sem julgar); a fonte fora da raiz (o
+   produto só a conta, em `outside_root`, e não a acusa); e o arquivo `.tokens` (sem .json), que o produto não
+   lê (`no_json_file`). O JSON é lido com `utf-8-sig`, como o produto lê: um BOM não desliga o julgamento.
+2. LIGAÇÃO DO BRIEF. O nó cujo `trace:` aponta o brief (`<design>/brief.md`) precisa de uma `external_edge`
+   para um grafo do business-context, OU de um nó `question` aberto com `x_missing_context: business-context`
+   ligado a ele, que declara a falta. O gate só pega a ligação QUEBRADA (integrity.dangling-external); a
+   AUSENTE é esta regra. E o brief que existe no disco sem nenhum nó que o trace também acusa: sem isso,
+   apagar o nó do brief calava a regra (a forma do protótipo da curadoria saía 0 nesse caso).
+
+ISOLADO DE PROPÓSITO: só Python 3 e PyYAML, sem nada do core. A parte genérica do locator migrou para o
+kg_trace do kg-ssot na 4.35.0 (2026-10-27, adoção chore/kg-ssot-4.35.0).
+
+Uso: python3 -I -B design-context-check.py --root <raiz> --design-dir <rel> --business-dir <rel>
+                                          [--graph <arquivo>] [--format tsv|human] [--strict]
+                                          [--delegate-locator]
+Saída tsv: `<SEV>\t<CÓDIGO>\t<caminho relativo>\t<mensagem>`, uma por achado. SEV é SOFT no 1º ciclo
+(os briefs dos adotantes ainda não migraram); --strict a sobe para HARD.
+rc: 0 nada a acusar · 1 algum achado · 2 NÃO PUDE JULGAR (grafo ilegível, YAML que não é mapa, `nodes` que
+não é lista, nó sem id, PyYAML ausente). rc 2 nunca é verde.
+"""
+import argparse
+import json
+import os
+import re
+import sys
+import urllib.parse
+
+
+class CannotJudge(Exception):
+    pass
+
+
+def norm_trace(t):
+    """`arquivo#ancora` e `arquivo:12[-30]` apontam o mesmo arquivo."""
+    if not isinstance(t, str):
+        return ""
+    t = t.strip().split("#", 1)[0]
+    t = re.sub(r":\d+(-\d+)?$", "", t)
+    return t[2:] if t.startswith("./") else t
+
+
+def resolve_pointer(doc, fragment):
+    pointer = urllib.parse.unquote(fragment[1:])  # RFC 6901 §6: decodifica antes de separar
+    cur = doc
+    for raw in pointer[1:].split("/"):
+        key = raw.replace("~1", "/").replace("~0", "~")
+        if isinstance(cur, dict) and key in cur:
+            cur = cur[key]
+        elif isinstance(cur, list) and key.isdigit() and int(key) < len(cur):
+            cur = cur[int(key)]
+        else:
+            return "ausente"
+    # `$root` (DTCG 2025.10): o grupo que carrega o próprio token-raiz é citável como token
+    return "ok" if isinstance(cur, dict) and ("$value" in cur or "$root" in cur) else "grupo"
+
+
+def inside_root(root, rel):
+    if os.path.isabs(rel):
+        return False
+    full = os.path.realpath(os.path.join(root, rel))
+    return full == os.path.realpath(root) or full.startswith(os.path.realpath(root) + os.sep)
+
+
+def load_graph(path):
+    try:
+        import yaml
+    except ImportError:
+        raise CannotJudge("PyYAML ausente")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            graph = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError) as exc:
+        raise CannotJudge(f"{path}: {exc.__class__.__name__}: {str(exc).splitlines()[0] if str(exc) else ''}")
+    if not isinstance(graph, dict):
+        raise CannotJudge(f"{path}: o documento não é um mapa")
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list):
+        raise CannotJudge(f"{path}: 'nodes' não é uma lista")
+    for node in nodes:
+        if not isinstance(node, dict) or not isinstance(node.get("id"), str):
+            raise CannotJudge(f"{path}: nó sem id")
+    return graph
+
+
+def check_locators(graph, root, grel, add, delegate=False):
+    for node in graph["nodes"]:
+        prov = node.get("provenance") if isinstance(node.get("provenance"), dict) else {}
+        src, loc = prov.get("source"), prov.get("locator")
+        src = src.strip() if isinstance(src, str) else src
+        if not (isinstance(src, str) and src.endswith((".json", ".tokens")) and isinstance(loc, str)):
+            continue
+        nid = node["id"]
+        loc = loc.strip()
+        if not loc.startswith("#/"):
+            if not src.endswith((".tokens.json", ".tokens")):
+                continue  # .json que não é arquivo de tokens (contrast-pairs.json) pode ter locator em prosa
+            # a fonte é um arquivo de tokens e o locator não é JSON Pointer (`/a/b`, `a.b.c`): sem esta linha a
+            # checagem pulava calada um token inexistente (passada adversarial, achado 4)
+            add("LOCATOR-FORMA", grel, f"{nid}: o locator '{loc}' de {src} não é um JSON Pointer no fragmento (#/a/b)")
+            continue
+        # com --delegate-locator (o kg_trace.py da REGRA 55 segue o locator), a fonte .json ilegível ou com o
+        # ponteiro ausente é dele; aqui ela só é aberta para julgar a forma DTCG do destino. A fonte fora da raiz
+        # segue daqui: o produto só a conta (outside_root), não a acusa (passada adversarial, achado 3).
+        delegated = delegate and src.endswith(".json")
+        if not inside_root(root, src):
+            add("LOCATOR-FORA-DA-RAIZ", grel, f"{nid}: provenance.source '{src}' sai da raiz do repo")
+            continue
+        try:
+            with open(os.path.join(root, src), encoding="utf-8-sig") as fh:  # -sig: como o produto lê (achado 8)
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            if not delegated:
+                add("LOCATOR-FONTE-ILEGIVEL", grel, f"{nid}: o arquivo de tokens {src} não abre como JSON")
+            continue
+        verdict = resolve_pointer(doc, loc)
+        if verdict == "grupo":
+            add("LOCATOR-GRUPO", grel, f"{nid}: {src}{loc} é um grupo, não um token ($value ausente)")
+        elif verdict == "ausente" and not delegated:
+            add("LOCATOR-AUSENTE", grel, f"{nid}: o token {loc} não existe em {src}")
+
+
+def check_brief(graph, root, grel, design_dir, business_dir, add):
+    brief = f"{design_dir}/brief.md"
+    briefs = [n["id"] for n in graph["nodes"] if norm_trace(n.get("trace")) == brief]
+    if not briefs:
+        if os.path.isfile(os.path.join(root, brief)):
+            add("BRIEF-FORA-DO-GRAFO", grel, f"{brief} existe e nenhum nó do grafo o traça (trace: {brief})")
+        return
+    ext = [e for e in (graph.get("external_edges") or []) if isinstance(e, dict)]
+    edges = [e for e in (graph.get("edges") or []) if isinstance(e, dict)]
+    missing = {n["id"] for n in graph["nodes"]
+               if n.get("node_type") == "question" and n.get("status") == "open"
+               and n.get("x_missing_context") == "business-context"}
+    prefix = f"{business_dir}/"
+    ext_ref = re.compile(r"\.kg\.(yaml|json)#")
+
+    def is_biz(end):
+        return isinstance(end, str) and end.startswith(prefix) and bool(ext_ref.search(end))
+
+    for bid in briefs:
+        # a ponta externa pode estar no `to` OU no `from` (contrato v4.3: exatamente uma ponta externa, em
+        # qualquer lado) — a 1ª redação só aceitava `from == brief` e acusava a forma válida (achado 1)
+        linked = any((e.get("from") == bid and is_biz(e.get("to"))) or (e.get("to") == bid and is_biz(e.get("from")))
+                     for e in ext)
+        declared = any((e.get("from") in missing and e.get("to") == bid)
+                       or (e.get("to") in missing and e.get("from") == bid) for e in edges)
+        if not (linked or declared):
+            add("BRIEF-SEM-LIGACAO", grel,
+                f"{bid}: o brief não tem external_edge para um grafo em {prefix} nem question aberta "
+                f"(x_missing_context: business-context) ligada a ele que declare a falta")
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--root", required=True)
+    ap.add_argument("--design-dir", default="docs/design-context")
+    ap.add_argument("--business-dir", default="docs/business-context")
+    ap.add_argument("--graph", default="")
+    ap.add_argument("--format", choices=("tsv", "human"), default="human")
+    ap.add_argument("--strict", action="store_true")
+    ap.add_argument("--delegate-locator", action="store_true")
+    try:
+        args = ap.parse_args(argv)
+    except SystemExit:
+        return 2
+    root = os.path.realpath(args.root)
+    if not os.path.isdir(root):
+        print(f"design-context-check: raiz inexistente: {args.root} — não pude julgar", file=sys.stderr)
+        return 2
+    design_dir, business_dir = args.design_dir.strip("/"), args.business_dir.strip("/")
+    sev = "HARD" if args.strict else "SOFT"
+    found = []
+
+    def add(code, path, msg):
+        found.append((sev, code, path, msg))
+
+    grel = args.graph or f"{design_dir}/design-context.kg.yaml"
+    gpath = grel if os.path.isabs(grel) else os.path.join(root, grel)
+    if not os.path.isfile(gpath):
+        if args.graph:
+            print(f"design-context-check: grafo inexistente: {grel} — não pude julgar", file=sys.stderr)
+            return 2
+        if os.path.isfile(os.path.join(root, design_dir, "brief.md")):
+            add("SEM-GRAFO", f"{design_dir}/brief.md",
+                f"há brief e não há {grel}: o design-context ainda não migrou para grafo (rode /design:setup)")
+        # sem brief e sem grafo: nada a julgar (adotante sem design)
+    else:
+        try:
+            graph = load_graph(gpath)
+        except CannotJudge as exc:
+            print(f"design-context-check: {exc} — não pude julgar", file=sys.stderr)
+            return 2
+        check_locators(graph, root, grel, add, delegate=args.delegate_locator)
+        check_brief(graph, root, grel, design_dir, business_dir, add)
+
+    for s, code, path, msg in found:
+        if args.format == "tsv":
+            print(f"{s}\t{code}\t{path}\t{msg}")
+        else:
+            print(f"  ✗ {s} [{code}] {path}: {msg}")
+    if args.format == "human":
+        print(f"design-context-check: {len(found)} achado(s)")
+    return 1 if found else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

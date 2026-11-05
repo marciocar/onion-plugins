@@ -8,8 +8,8 @@
 # expõe: o arquivo inteiro entra no contexto e no transcript. A 1ª cura trocou a prosa e as permissões
 # (40 `Bash(cat .env*)`), e o Elenxo a REPROVOU com razão: `allowed-tools` só PRÉ-APROVA, não proíbe; o
 # `Read` seguia livre, `Bash(grep * .env)` seguia liberado no settings, e sob bypassPermissions nada é
-# restrito. Proibir exige o único mecanismo que barra sob bypass: o exit 2 do PreToolUse — a capacidade
-# que justifica o acoplamento ao Claude Code (CLAUDE.md, postura de acoplamento).
+# restrito. Proibir exige um veto que valha sob bypass: o exit 2 do PreToolUse. É camada de conformidade,
+# não fronteira de segurança: as condições de força estão no CLAUDE.md (identidade canônica, 2026-11-04).
 #
 # ── O QUE VETA ───────────────────────────────────────────────────────────────────────────────
 #   · Read / Grep cujo caminho é um arquivo .env (`.env`, `.env.local`, `.env.prod` …);
@@ -55,8 +55,30 @@
 # nada; a 2ª, que a quebra de linha não separava comandos (`test -f .env` na 1ª linha liberava o bloco
 # inteiro), que comentário e `echo` viravam falso positivo nos blocos da própria cura, e que `git diff
 # --no-index`, glob (`cat .e*`, Grep glob) e interpretador inline escapavam. Bancada: run_env_exposure_selftests.
+# ⚠️ CONSUMIDOR DECLARADO (2026-10-26, revisão adversarial do adotante sge): a perna de leitura do KG
+# (`kg-read-leg.sh`) LÊ o `GUARD_PY` abaixo pelo `ast` e usa `segments` e `WRAPPERS`. O contrato: o bloco
+# `GUARD_PY=$(cat <<'PY' … PY )` com esse delimitador, `segments(cmd)` e `WRAPPERS` no nível do módulo, e toda
+# constante de que eles dependem em MAIÚSCULAS e atribuída a um nome só (o `ast` de lá leva import, def, class
+# e constante em maiúsculas, nada mais). Quebrar o contrato não abre o veto: faz a perna CALAR no `sed -i`. A
+# família kg_read_leg prende o contrato (caso (s): o `segments` pelo `ast` igual ao da guarda executada inteira).
 set -uo pipefail
 input="$(cat)"
+# onion_env_may_touch <json-do-hook> — sem tokenizador: rc 0 quando o texto PODE alcançar um .env. Aspas e `\`
+# saem antes de casar, porque o shell junta `.e""nv` em `.env`. Formas: ponto seguido de `e` ou de metacaractere,
+# padrão que termina no nome sem o ponto,
+# leitor recursivo (rg, tar e afins já são recursivos sem flag), escape que monta o nome, e JSON sem campo legível
+# (aí julga o texto cru). TETO: nome montado por variável vinda de fora, ou por programa, passa, como no veto inteiro.
+onion_env_may_touch() {
+  local t f v
+  t=""
+  for f in command file_path path glob; do
+    v="$(printf '%s' "$1" | grep -oE "\"$f\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" | head -n1)" || v=""
+    t="${t} ${v#*:}"
+  done
+  [ -n "${t// /}" ] || t="$1"
+  t="$(printf '%s' "$t" | tr -d "\"'\\\\")"
+  grep -qE '\.(e|[*?{[])|[*?]e?nv|(^|[^[:alnum:]_.-])(grep|egrep|fgrep|rgrep|ugrep|rg|ag|ack|cp|scp|tar|zip|rsync|diff)[[:space:]]([^;&|]*[[:space:]])?(-[[:alnum:]]*[rR]|--recursive|--dereference-recursive)|(^|[^[:alnum:]_.-])(rg|ag|ack|rgrep|tar|zip)[[:space:]]|u002e|x2e|056|base64' <<< "$t"
+}
 # o script vai por -c e o JSON do hook pela entrada padrão. A 1ª redação usava `python3 - <<'PY'`, e aí o
 # heredoc ERA a entrada padrão: o JSON nunca chegava e o veto passava tudo (18 de 18 vetos falharam na 1ª
 # bateria — fail-open total, pego antes de registrar o hook).
@@ -70,7 +92,7 @@ import fnmatch, glob, itertools, json, os, re, shlex, sys
 # cura troca só o ACUMULADOR: `token` vira uma propriedade que guarda os pedaços numa lista e entrega a
 # string montada uma vez, no fim do token. A máquina de estados do shlex é a mesma, e os tokens também.
 # Se uma versão futura do Python mudar o read_token, o pior caso é perder a otimização ou estourar uma
-# exceção; e exceção aqui cai no `|| out=…` lá embaixo, que FECHA (nunca abre).
+# exceção; e exceção aqui cai no fechamento lá embaixo: com python vivo, fecha (nunca abre).
 class _TokenAcc:
     __slots__ = ('parts', 'n')
     def __init__(self, s=''):
@@ -155,13 +177,24 @@ def is_env_name(b):
         return not SAFE_SUFFIX.match(m.group(1))
     return bool(re.match(r'^[A-Za-z0-9_-]+\.env$', b, re.I))          # prod.env, app.env
 
-def expand_braces(t):
+# TETO DA EXPANSÃO: acima dele o custo cresce rápido e não há o que provar. Passou, a análise falha e fecha. Medido em
+# 2026-11-05: o maior comando real do corpus do core não chega perto (grafo guard-hooks-python-isolated-2026-11).
+BRACE_CAP = 256
+
+class BraceLimit(Exception):
+    pass
+
+def expand_braces(t, budget=None):
+    budget = [BRACE_CAP] if budget is None else budget
     m = re.search(r'\{([^{}]*)\}', t)
     if not m:
         return [t]
     out = []
     for alt in m.group(1).split(','):
-        out.extend(expand_braces(t[:m.start()] + alt + t[m.end():]))
+        budget[0] -= 1
+        if budget[0] < 0:
+            raise BraceLimit('expansão de chaves acima do teto')
+        out.extend(expand_braces(t[:m.start()] + alt + t[m.end():], budget))
     return out
 
 def is_env_token(tok):
@@ -1072,29 +1105,49 @@ def judge(cmd, depth=0):
         return "'%s' lendo %s" % (name, envs[0]) + (" (arquivo de trabalho no scratchpad? o veto não isenta *.env nem ali: grave-o com outra extensão, .vars ou .txt)" if scratch_hint(envs[0]) else "")
     return None
 
+# JSON ilegível não vira `{}`: isso era "nada a julgar", a falha de análise virando permissão (2026-11-04). Sai 3, e
+# o bash abaixo julga pela forma do texto. Qualquer outra queda, com python vivo, fecha.
 try:
     d = json.load(sys.stdin)
-except Exception:
-    d = {}
+except ValueError:
+    sys.exit(3)
 d = d if isinstance(d, dict) else {}
-tool = d.get('tool_name') or ''
-ti = d.get('tool_input') or {}
 reason = None
-if tool == 'Read':
-    if is_env_token(str(ti.get('file_path') or '')):
-        reason = 'Read de um arquivo .env' + (" (arquivo de trabalho no scratchpad? o veto não isenta *.env nem ali: grave-o com outra extensão, .vars ou .txt)" if scratch_hint(str(ti.get('file_path') or '')) else "")
-elif tool == 'Grep':
-    if is_env_token(str(ti.get('path') or '')) or (ti.get('glob') and is_env_token(str(ti.get('glob')))):
-        reason = 'Grep sobre um arquivo .env (caminho ou glob)'
-elif tool == 'Bash':
-    RAW['cmd'] = str(ti.get('command') or '')
-    CTX['base'] = str(d.get('cwd') or '') or os.getcwd()
-    CTX['strict'] = cites_env(RAW['cmd'])            # um .env literal na linha: o glob volta a fechar
-    reason = judge(RAW['cmd'])
+try:
+    tool = d.get('tool_name') or ''
+    ti = d.get('tool_input') or {}
+    if tool == 'Read':
+        if is_env_token(str(ti.get('file_path') or '')):
+            reason = 'Read de um arquivo .env' + (" (arquivo de trabalho no scratchpad? o veto não isenta *.env nem ali: grave-o com outra extensão, .vars ou .txt)" if scratch_hint(str(ti.get('file_path') or '')) else "")
+    elif tool == 'Grep':
+        if is_env_token(str(ti.get('path') or '')) or (ti.get('glob') and is_env_token(str(ti.get('glob')))):
+            reason = 'Grep sobre um arquivo .env (caminho ou glob)'
+    elif tool == 'Bash':
+        RAW['cmd'] = str(ti.get('command') or '')
+        CTX['base'] = str(d.get('cwd') or '') or os.getcwd()
+        CTX['strict'] = cites_env(RAW['cmd'])            # um .env literal na linha: o glob volta a fechar
+        reason = judge(RAW['cmd'])
+except Exception as e:
+    # o analisador morreu com python vivo e JSON válido: não se provou nada, e o que não se prova fecha, com a razão
+    reason = 'o analisador do veto falhou (%s) — fechado por segurança' % type(e).__name__
 print(reason or '')
 PY
 )
-out="$(printf '%s' "$input" | ONION_GUARD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)" python3 -c "$GUARD_PY")" || out="o analisador do veto falhou — fechado por segurança"
+out="$(printf '%s' "$input" | ONION_GUARD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)" python3 -I -c "$GUARD_PY" 2>/dev/null)"
+_guard_rc=$?
+if [ "${_guard_rc}" -ne 0 ]; then
+  # A ANÁLISE NÃO TERMINOU. Três casos, e só dois vão à forma do texto:
+  #  · python vivo e analisador morto (queda fora do `try`, memória, processo morto): FECHA, com qualquer comando;
+  #  · JSON ilegível (rc 3) ou python3 ausente ou quebrado: fecha só o que tem FORMA de alcançar o objeto guardado.
+  #    Fechar TUDO aqui travava a sessão inteira, inclusive o Read que diagnostica o python. Mesma lógica dos vetos de
+  #    merge e force-push. Corte e custo medidos no grafo guard-hooks-python-isolated-2026-11.
+  if [ "${_guard_rc}" -ne 3 ] && python3 -I -c pass >/dev/null 2>&1; then
+    out="o analisador do veto falhou (rc ${_guard_rc}) — fechado por segurança"
+  else
+    onion_env_may_touch "$input" || exit 0
+    out="o veto não conseguiu analisar este comando (python3 ausente ou quebrado, ou JSON do hook ilegível), e ele tem forma de quem alcança um .env — fechado por segurança"
+  fi
+fi
 [ -z "${out}" ] && exit 0
 echo "GUARDA-PRETOOLUSE (.env): ${out} — o conteúdo do .env (os segredos) entraria no contexto e no transcript. Use: 'bash ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/env-check.sh --provider|--check|--get <CHAVE-NÃO-SECRETA>', ou carregue no ambiente com 'set -a; source .env; set +a'. Se precisar ver o arquivo, o maestro o abre fora da sessão." >&2
 exit 2

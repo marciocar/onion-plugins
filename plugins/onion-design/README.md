@@ -2,7 +2,7 @@
 
 Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializacao via design-sink. Auto-adapta ao design-context do consumidor.
 
-**Versão** `0.1.57` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `gold`
+**Versão** `0.1.58` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `gold`
 
 ## Instalar
 
@@ -22,12 +22,12 @@ claude plugin marketplace add marciocar/onion-plugins && claude plugin install o
 
 | Componente | Quantidade |
 |---|---|
-| Comandos | 3 |
+| Comandos | 4 |
 | Agentes | 3 |
-| Skills | 0 |
+| Skills | 1 |
 | Hooks | 0 |
 
-**Capacidades (Capability Contract):** provê `design-tokens-w3c-dtcg`, `wcag-contrast-gate`, `materializacao-css-tailwind-shadcn`; requer `agent:design-system-specialist`, `agent:brand-generator`, `agent:branding-positioning-specialist`, `validation:lint-design-tokens.sh`, `util:design-source`, `util:design-sink`.
+**Capacidades (Capability Contract):** provê `design-tokens-w3c-dtcg`, `wcag-contrast-gate`, `materializacao-css-tailwind-shadcn`, `design-setup`, `ssot-context-resolver`, `design-context-graph`; requer `agent:design-system-specialist`, `agent:brand-generator`, `agent:branding-positioning-specialist`, `validation:lint-design-tokens.sh`, `util:design-source`, `util:design-sink`, `util:design-setup`, `skill:onion-design-context`, `validation:design-context-check.sh`.
 
 ## Comandos
 
@@ -38,6 +38,7 @@ Invocação: `/onion-design:<comando>` (namespace do plugin).
 | `/onion-design:deck` | Gerador de deck de treino/onboarding AUTO-GUIADO como HTML self-contained: uma spec (roteiro de slides) vira um deck que abre em qualquer navegador, OFFLINE (f… |
 | `/onion-design:generate` | Camada generativa da vertical de design: diverge (N identidades por IA, em orquestração paralela) → converge (gate WCAG determinístico filtra + juiz ranqueia) … |
 | `/onion-design:identity` | Cria e desenvolve a identidade visual de um projeto como spec-as-code: brief (lê business-context) → develop (tokens W3C/DTCG na SSOT design-context, gate WCAG… |
+| `/onion-design:setup` | A entrada do ciclo de design: parte do docs/design-context/brief.md que já existe (ou cria o stub mínimo, com confirmação), faz três perguntas (a cor da marca,… |
 
 ## Agentes
 
@@ -46,6 +47,12 @@ Invocação: `/onion-design:<comando>` (namespace do plugin).
 | `@brand-generator` | Gerador divergente de identidade visual: propõe N variações de paleta/identidade (cores, papéis semânticos) a partir de um brief, em W3C/DTCG. |
 | `@branding-positioning-specialist` | Especialista em Branding e Posicionamento de Marca que aplica métodos, estratégias e frameworks modernos de 2025 para desenvolver identidade de marca, posicion… |
 | `@design-system-specialist` | Especialista em design system técnico: materializa design tokens W3C/DTCG em código (CSS vars, Tailwind v4 @theme, shadcn/ui), audita acessibilidade (WCAG) e m… |
+
+## Skills
+
+| Skill | Quando ativa |
+|---|---|
+| `onion-design-context` | Contrato de SSOT mínimo e resolver de contexto da vertical de DESIGN do Onion. |
 
 ## Requisitos
 
@@ -57,7 +64,7 @@ Invocação: `/onion-design:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `531c443c1048` |
+| tree_sha (hash do conteúdo das fontes) | `312f7676ca03` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
@@ -65,11 +72,11 @@ Artefato GERADO por `assemble-plugin.sh` + `plugin-readme.sh` a partir da SSOT e
 
 ## Comandos do core citados (não distribuídos neste plugin)
 
-Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `meta:create-vertical`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
+Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do Onion (meta-fábrica ou outra superfície) e **não** são instalados por este plugin: `meta:adopt`, `meta:create-vertical`. Estão disponíveis num repo que adotou o Onion por vendorização (`.claude/` completo).
 
 ## Funciona melhor com
 
-Comandos deste plugin citam: `onion`, `onion-product`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
+Comandos deste plugin citam: `onion`, `onion-compliance`, `onion-product`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
 
 ## Licença
 

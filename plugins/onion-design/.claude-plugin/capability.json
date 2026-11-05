@@ -1,8 +1,8 @@
 {
   "name": "onion-design",
-  "version": "0.1.57",
+  "version": "0.1.58",
   "conformance": "gold",
-  "provides": ["design-tokens-w3c-dtcg","wcag-contrast-gate","materializacao-css-tailwind-shadcn"],
-  "requires": ["agent:design-system-specialist","agent:brand-generator","agent:branding-positioning-specialist","validation:lint-design-tokens.sh","util:design-source","util:design-sink"],
-  "loads": ["when:brief -> kb-or-context:business-context","when:material -> reuse:presentation/canva"]
+  "provides": ["design-tokens-w3c-dtcg","wcag-contrast-gate","materializacao-css-tailwind-shadcn","design-setup","ssot-context-resolver","design-context-graph"],
+  "requires": ["agent:design-system-specialist","agent:brand-generator","agent:branding-positioning-specialist","validation:lint-design-tokens.sh","util:design-source","util:design-sink","util:design-setup","skill:onion-design-context","validation:design-context-check.sh"],
+  "loads": ["when:brief -> kb-or-context:business-context","when:setup -> resolve:design-context (skill onion-design-context)","when:setup sem business-context -> skill:onion-product-context (plugin onion-product; ausente, o setup pergunta publico e tom)","when:material -> reuse:presentation/canva"]
 }

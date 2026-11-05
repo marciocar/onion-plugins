@@ -24,14 +24,14 @@ claude plugin marketplace add marciocar/onion-plugins && claude plugin install o
 
 | Plugin | Categoria | Versão | Comandos | Agentes | Skills | Hooks | O que traz |
 |---|---|---|---|---|---|---|---|
-| [`onion`](plugins/onion/README.md) | core | `0.1.332` | 26 | 2 | 8 | 3 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
-| [`onion-compliance`](plugins/onion-compliance/README.md) | vertical | `0.1.45` | 1 | 5 | 1 | 0 | Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK… |
-| [`onion-design`](plugins/onion-design/README.md) | vertical | `0.1.57` | 3 | 3 | 0 | 0 | Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializaca… |
-| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.145` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
-| [`onion-meta`](plugins/onion-meta/README.md) | vertical | `0.1.5` | 9 | 3 | 0 | 0 | Meta-fábrica do Sistema Onion: cria comandos, agentes, skills, abstrações SDAAL e knowledge bases pelos templ… |
-| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.94` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
+| [`onion`](plugins/onion/README.md) | core | `0.1.333` | 26 | 2 | 8 | 3 | Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + ra… |
+| [`onion-compliance`](plugins/onion-compliance/README.md) | vertical | `0.1.46` | 1 | 5 | 1 | 0 | Vertical de compliance do Onion: documentacao de conformidade como spec-as-code (ISO 27001/22301, SOC2, PMBOK… |
+| [`onion-design`](plugins/onion-design/README.md) | vertical | `0.1.58` | 4 | 3 | 1 | 0 | Vertical de design do Onion: identidade visual como spec-as-code (tokens W3C/DTCG), gate WCAG e materializaca… |
+| [`onion-engineering`](plugins/onion-engineering/README.md) | vertical | `0.1.146` | 21 | 19 | 1 | 0 | Vertical de engenharia do Onion: fluxo faseado plan→start→work→pre-pr→pr→pr-update (GitFlow + sessões persist… |
+| [`onion-meta`](plugins/onion-meta/README.md) | vertical | `0.1.6` | 9 | 3 | 0 | 0 | Meta-fábrica do Sistema Onion: cria comandos, agentes, skills, abstrações SDAAL e knowledge bases pelos templ… |
+| [`onion-product`](plugins/onion-product/README.md) | vertical | `0.1.95` | 31 | 17 | 1 | 0 | Vertical de produto do Onion: descoberta a backlog (collect→refine→spec→feature), decomposição de tasks agnós… |
 
-Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, motores KG, guardas, runtime); cada vertical acrescenta comandos e agentes de um domínio; `onion-work-tools` traz os utilitários de trabalho (censo, backlog, freshness). Cada plugin tem o seu README com o catálogo completo.
+Instale só o que precisa: `onion` é o núcleo (obrigatório: orquestrador, motores KG, guardas, runtime e os utilitários de trabalho, como censo, backlog e freshness); cada vertical acrescenta comandos e agentes de um domínio. Cada plugin tem o seu README com o catálogo completo.
 
 ```
 /plugin install onion-engineering@onion-plugins
@@ -59,7 +59,7 @@ Três plugins foram absorvidos para o canal premiar bundles verticais coesos (pe
 
 - Claude Code ≥ 2.1.239 (marketplace com `pluginRoot`).
 - `bash`, `git`, `awk`; `python3` para os motores de grafo e censos; `jq` opcional.
-- Os hooks são scripts locais e determinísticos; podem vetar uma ação com `exit 2` (é a capacidade que só o Claude Code oferece). Nenhum envia dados para fora.
+- Os hooks são scripts locais e determinísticos; podem vetar uma ação com `exit 2` (camada de conformidade, não fronteira de segurança: sem chave de política na configuração gerenciada, um mod carregado vence o veto). Nenhum envia dados para fora.
 
 ## O que este canal é — e o que não é
 

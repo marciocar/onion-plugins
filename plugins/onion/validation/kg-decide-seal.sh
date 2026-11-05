@@ -10,7 +10,8 @@
 #
 # O que escreve (nó existente decision|question `open`):
 #   status: done · verified_at · verified_against · provenance {source, locator, method, locality: pessoa}
-#   com method = "testemunho: decisão do maestro por pergunta com opções, <data>" · e na narrative (mantida
+#   com method = "testimony: decisão do maestro por pergunta com opções, <data>" (forma canônica do contrato v4.16;
+#   selos antigos com o alias "testemunho:" seguem valendo) · e na narrative (mantida
 #   a anterior) a opção escolhida E as descartadas. O plane fica DEV, e PROD é REBAIXADO (dito na narrative):
 #   a base do selo é testemunho, e o contrato reprova testemunho em PROD (integrity.testimony-in-prod, SHOULD).
 #   O radar avisa decision-done-em-DEV (SOFT, agregado) — os dois discordam, e quem vence é o contrato; a
@@ -33,6 +34,15 @@
 #   tem de sair 0 e, onde o contrato está vendorizado (vendor/kg-ssot), `kg-contract-check.sh` também
 #   (ele cobra a REGRA 99 (Nó de .kg.yaml sem caminho de máquina, julgado pela classe) no texto da opção).
 #   Contrato que NÃO PÔDE julgar (rc 2 dele) é DECLARADO em stderr, não vira verde calado.
+#   E o LINT DE NOMES (`kg_vocab.py lint`, o mesmo leitor que o CI do core roda sobre a prosa dos grafos), onde
+#   ele está no repo (vendor/kg-ssot/tools ou tools/ do produto): o selador o roda sobre o corpus ANTES e DEPOIS
+#   da escrita e reprova (rc 3, DESFEITO) o achado que o selo acrescentou ao grafo tocado — código curto sem
+#   termo, ou ambíguo, num label/narrative. Dano medido (2026-10-25): o selo copia o `verified_against` e a
+#   proveniência anteriores para a narrative; o `verified_against` o lint não lê, a narrative sim, e um "r18" do
+#   texto antigo virou `vocab.code-unresolved` que o selador deu por ✅ e o CI reprovou depois. A comparação é
+#   antes×depois (a catraca é o próprio grafo), então dívida antiga não vira culpa do selo. Lint ausente, grafo
+#   não rastreado pelo git (o lint lê só os rastreados) ou lint que não julgou: DECLARADO em stderr, nunca calado.
+#   As externas do repo (`.kg-ssot/vocab-externals.tsv`, esquema TAB regex), se houver, entram como --external.
 # Contrato de custo (run_id · tokens · agents · duration_min): NÃO se aplica — isto não é run de workflow;
 #   um selo é uma escrita determinística de 0 tokens. Declarado aqui e na doutrina, não omitido.
 #
@@ -129,7 +139,37 @@ if [ "${CRC}" -eq 1 ]; then
   exit 2
 fi
 
-BK="$(mktemp)"; STAGE="$(mktemp)"; trap 'rm -f "${BK}" "${STAGE}"' EXIT
+# O LINT DE NOMES, medido ANTES da escrita (o "depois" vem no gate final). VOCAB_READER vazio = não roda, com o
+# porquê em VOCAB_WHY (declarado no fim, nunca calado). A comparação antes×depois é só do grafo tocado.
+VOCAB_READER=""; VOCAB_WHY=""; VOCAB_REL=""; VOCAB_EXT=()
+if [ -z "${ROOT}" ]; then VOCAB_WHY="fora de repo git"
+elif [ -f "${ROOT}/vendor/kg-ssot/tools/kg_vocab.py" ]; then VOCAB_READER="${ROOT}/vendor/kg-ssot/tools/kg_vocab.py"
+elif [ -f "${ROOT}/tools/kg_vocab.py" ]; then VOCAB_READER="${ROOT}/tools/kg_vocab.py"
+else VOCAB_WHY="o repo não tem o kg_vocab.py (nem vendor/kg-ssot/tools nem tools/)"; fi
+if [ -n "${VOCAB_READER}" ]; then
+  # o caminho do grafo como o lint o escreve (relativo à raiz); python e não `realpath --relative-to`, que é só GNU
+  VOCAB_REL="$(python3 -I -c 'import os, sys; print(os.path.relpath(os.path.realpath(sys.argv[2]), os.path.realpath(sys.argv[1])))' "${ROOT}" "${GRAPH}")"
+  if ! git -C "${ROOT}" ls-files --error-unmatch -- "${VOCAB_REL}" >/dev/null 2>&1; then
+    VOCAB_WHY="o grafo não é rastreado pelo git (o lint lê só os rastreados; rode-o depois do git add)"; VOCAB_READER=""
+  fi
+fi
+if [ -n "${VOCAB_READER}" ] && [ -f "${ROOT}/.kg-ssot/vocab-externals.tsv" ]; then
+  while IFS=$'\t' read -r _vs _vr _vrest; do
+    case "${_vs}" in ''|'#'*) continue ;; esac
+    { [ -n "${_vr}" ] && [ -z "${_vrest:-}" ]; } || { VOCAB_WHY="linha malformada em .kg-ssot/vocab-externals.tsv (${_vs})"; VOCAB_READER=""; break; }
+    VOCAB_EXT+=(--external "${_vs}=${_vr}")
+  done < "${ROOT}/.kg-ssot/vocab-externals.tsv"
+fi
+VB="$(mktemp)"; VA="$(mktemp)"
+_vocab() {  # $1=arquivo de saída: o JSON do lint sobre o corpus; rc além de 0|1 = não julgou
+  (cd "${ROOT}" && python3 -I -B "${VOCAB_READER}" lint --root . --format json ${VOCAB_EXT[@]+"${VOCAB_EXT[@]}"}) > "$1" 2>/dev/null
+}
+if [ -n "${VOCAB_READER}" ]; then
+  _vrc=0; _vocab "${VB}" || _vrc=$?
+  if [ "${_vrc}" -gt 1 ]; then VOCAB_WHY="o lint saiu rc ${_vrc} antes do selo (não julgou)"; VOCAB_READER=""; fi
+fi
+
+BK="$(mktemp)"; STAGE="$(mktemp)"; trap 'rm -f "${BK}" "${STAGE}" "${VB}" "${VA}"' EXIT
 cp -p "${GRAPH}" "${BK}"
 H0="$(sha256sum "${GRAPH}" | cut -d' ' -f1)"
 
@@ -168,7 +208,7 @@ seal_txt = (f'Selado por /onion:decide em {date}: escolhida «{chosen}»'
             + (' (resposta livre do maestro, fora das opções oferecidas)' if other == '1' else '')
             + '; descartadas: ' + ' · '.join(f'«{r}»' for r in rej) + '.')
 vag = f'decisão do maestro em {date}, por pergunta com opções (/onion:decide): escolhida «{chosen}»'
-method = f'testemunho: decisão do maestro por pergunta com opções, {date}'
+method = f'testimony: decisão do maestro por pergunta com opções, {date}'
 locator = f'pergunta com opções de {date}' + (f': «{one(question)}»' if question else '')
 
 def narr_block(fi, old, tail):
@@ -343,10 +383,56 @@ else
     echo "kg-decide-seal: repo git sem leitor de contrato (nem vendor/kg-ssot nem tools/kg_validate.py) — gate = só o radar (declarado)" >&2
   fi
 fi
+# O LINT DE NOMES, depois: o achado que o grafo tocado NÃO tinha antes é do selo → desfaz, rc 3, nomeando
+# código, campo e nó. Decide pelo rc e pelo JSON do lint, nunca pela prosa dele (o vendor fala conforme o locale).
+_vsuf=""
+if [ -n "${VOCAB_READER}" ]; then
+  _vrc=0; _vocab "${VA}" || _vrc=$?
+  if [ "${_vrc}" -gt 1 ]; then
+    VOCAB_WHY="o lint saiu rc ${_vrc} depois do selo (não julgou)"
+  else
+    _drc=0
+    VDELTA="$(python3 -I -B - "${VB}" "${VA}" "${VOCAB_REL}" <<'VPY'
+import json, sys
+def rows(p):
+    d = json.load(open(p, encoding='utf-8'))
+    l = d.get('lint') if isinstance(d, dict) else None
+    if d.get('schema_version') != 'kg-ssot.vocab/1' or not isinstance(l, dict) or not isinstance(l.get('findings'), list):
+        sys.exit(2)
+    out = {}
+    for f in l['findings']:
+        if isinstance(f, dict) and f.get('file') == sys.argv[3]:
+            k = (str(f.get('id')), str(f.get('field')), str(f.get('code')), str(f.get('token')))
+            out[k] = out.get(k, 0) + 1
+    return out
+try:
+    b, a = rows(sys.argv[1]), rows(sys.argv[2])
+except (OSError, ValueError, AttributeError):
+    sys.exit(2)
+new = [k for k, n in sorted(a.items()) if n > b.get(k, 0)]
+for nid, field, code, token in new:
+    print(f'«{token}» no campo {field} do nó {nid} ({code})')
+sys.exit(1 if new else 0)
+VPY
+)" || _drc=$?
+    if [ "${_drc}" -eq 1 ]; then
+      _undo
+      echo "kg-decide-seal: o lint de nomes REPROVOU o que o selo escreveu — escrita DESFEITA:" >&2
+      printf '%s\n' "${VDELTA}" | head -6 | sed 's/^/  ✗ /' >&2
+      echo "  O selo copia o texto anterior (verified_against, proveniência) e as opções para a narrative, que o lint lê. Glose o código na origem (esquema:código, ou um x_term com a notation) e sele de novo." >&2
+      exit 3
+    elif [ "${_drc}" -ne 0 ]; then VOCAB_WHY="o JSON do lint veio com forma inesperada (não julgou)"
+    else _vsuf=" · nomes sem achado novo por $(basename "${VOCAB_READER}")"; fi
+  fi
+fi
+if [ -z "${_vsuf}" ]; then
+  echo "kg-decide-seal: ⚠️ lint de nomes não rodou — ${VOCAB_WHY}" >&2
+  _vsuf=" · nomes NÃO julgados"
+fi
 # "contrato rc 0" só quando o contrato JULGOU e passou (passada adversarial de 2026-10-15): com o vendor agora
 # viajando, um adotante sem PyYAML/jsonschema tem leitor e CRC=2 — o sufixo afirmava rc 0 logo depois do aviso
 # "contrato NÃO JULGADO".
 _csuf=""; [ -n "${CONTRACT_READER}" ] && [ "${CRC}" -eq 0 ] && _csuf=" · contrato rc 0 por ${CONTRACT_READER}"
 [ -n "${CONTRACT_READER}" ] && [ "${CRC}" -ne 0 ] && [ "${CRC}" -ne 99 ] && _csuf=" · contrato NÃO julgado (rc ${CRC})"
-echo "kg-decide-seal: ✅ selado — radar --integrity --schema exit 0${_csuf}"
+echo "kg-decide-seal: ✅ selado — radar --integrity --schema exit 0${_csuf}${_vsuf}"
 exit 0

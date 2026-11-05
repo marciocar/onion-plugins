@@ -2,7 +2,7 @@
 
 Núcleo operacional do Sistema Onion: o orquestrador mestre (skill onion), runtime de knowledge graph (kg + radar soberano + kg-freshness), sessões e diário, orquestração de subagentes, condução (wizard/onboarding/retro), validação de meta-specs e os adapters SDAAL de task-manager e forge.
 
-**Versão** `0.1.332` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
+**Versão** `0.1.333` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `silver`
 
 ## Instalar
 
@@ -42,7 +42,7 @@ Invocação: `/onion:<comando>` (namespace do plugin).
 | `/onion:catch-up` | Briefing de retomada — reconstrói "onde paramos" de sinais duráveis (git recente, sessão ACTIVE, memória, inbox) após queda/saída de sessão. |
 | `/onion:census` | Censo populacional do backlog — mede os nós open contra o VIVO (censo+realidade) com juiz fixo, sela pela tabela AUDIT e projeta a listagem REAL. |
 | `/onion:constellation` | 🗺️ O MAPA da Constelação de Estudos — visão macro das N estrelas (estudos discuss/*) lendo SÓ os metadados (frontmatter+Tier-0) de cada SEED. |
-| `/onion:context-freshness` | Audita o frescor dos contextos de domínio (docs/business-context/, docs/technical-context/, docs/compliance-context/) tratando-os como SSOT viva, não snapshot. |
+| `/onion:context-freshness` | Audita o frescor dos contextos de domínio (docs/business-context/, docs/technical-context/, docs/compliance-context/, docs/design-context/) tratando-os como SS… |
 | `/onion:decide` | Mede o que está em voo (checkpoints, PRs e CI, worktrees, inbox, nós citados), filtra o que é do maestro, pergunta em rodadas com opções e recomendação, e sela… |
 | `/onion:diary` | Gerencia o diário de aprendizado da instância Onion — sistema de breadcrumbs para o Transformer. |
 | `/onion:drive` | Conduz um plano-grafo até o fim com rigor Onion — censo→avança→Elenxo→dogfood→realign→checkpoint (degrau AUDIT; AUTOMATE com merge desligado por padrão) |
@@ -55,7 +55,7 @@ Invocação: `/onion:<comando>` (namespace do plugin).
 | `/onion:metaspec-validate` | Valida um artefato/decisão contra as metaspecs vigentes, aplicando a constituição do @metaspec-gate-keeper. |
 | `/onion:onion` | Ponto de entrada inteligente para o Sistema Onion. |
 | `/onion:orchestrate` | Orquestra subagentes em paralelo (fan-out/fan-in) sobre uma tarefa, via a ferramenta nativa Workflow. |
-| `/onion:radar` | Percepção externa do Onion — re-mede os 6 eixos de mundo (KG-agente, self-improving, ecossistema Claude Code, capital, gates determinísticos, fronteira de mode… |
+| `/onion:radar` | Percepção externa do Onion — re-mede os 7 eixos de mundo (KG-agente, self-improving, ecossistema Claude Code, capital, gates determinísticos, fronteira de mode… |
 | `/onion:realign` | Revisão em camadas da jornada do plano × o vivo — o "selo realinhado" (passado/presente/futuro) |
 | `/onion:recover` | Recupera a identidade Onion de um repo adotado que perdeu contato com o framework: regenera .onion-version ausente/incompleto e o skeleton do CLAUDE.md. |
 | `/onion:setup-code-review` | Setup, validação e otimização de code review automático no CI (GitHub Actions). |
@@ -90,7 +90,7 @@ Invocação: `/onion:<comando>` (namespace do plugin).
 | `PostToolUse` | `bash-empty-result-guard.sh` |
 | `PreToolUse` | `pretooluse-env-guard.sh` |
 
-Hooks são determinísticos (bash) e podem VETAR uma ação com `exit 2` — é a capacidade que só existe no Claude Code. Nenhum envia dados para fora; todos rodam local.
+Hooks são determinísticos (bash) e podem VETAR uma ação com `exit 2`: é camada de conformidade, não fronteira de segurança, e sem chave de política na configuração gerenciada um mod carregado vence o veto. Nenhum envia dados para fora; todos rodam local.
 
 ## Requisitos
 
@@ -102,7 +102,7 @@ Hooks são determinísticos (bash) e podem VETAR uma ação com `exit 2` — é 
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `67165fe07f00` |
+| tree_sha (hash do conteúdo das fontes) | `495d315feca0` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 
@@ -114,7 +114,7 @@ Estes comandos aparecem no texto sem a barra inicial porque pertencem ao core do
 
 ## Funciona melhor com
 
-Comandos deste plugin citam: `onion-compliance`, `onion-engineering`, `onion-meta`, `onion-product`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
+Comandos deste plugin citam: `onion-compliance`, `onion-design`, `onion-engineering`, `onion-meta`, `onion-product`. Não é dependência — sem eles, essas menções apontam para comandos não instalados.
 
 ## Licença
 
