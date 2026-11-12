@@ -14,6 +14,9 @@
 #   tm.sh comment.add SAC-65 "texto em markdown"   (ou --body-file <arquivo>)
 #   tm.sh status.transition SAC-65 <nomeDoEstado|stateId>
 #   tm.sh item.create --title T [--description D] [--project P] [--parent ID]
+#   tm.sh item.archive SAC-65 [--dry-run]   (idempotente: já arquivada não chama a mutação)
+#   tm.sh item.list [--state N] [--state-type completed,canceled] [--older-than-days N] [--team KEY] [--project P] [--include-archived] [--with-description] [--limit N]
+#   tm.sh estimate.points SAC-65 5|--clear   ·   tm.sh estimate.points_read SAC-65   ·   tm.sh due_date.set SAC-65 2026-11-30|--clear --set-by "quem" [--note "texto"]
 #   tm.sh search.query "<texto>"   ·   tm.sh project.list   ·   tm.sh hierarchy.subtask_list SAC-65
 # Os verbos são os ids do vocabulário de interface.md §Capacidades.
 #
@@ -46,6 +49,8 @@ provider="$(bash "${HERE}/env-check.sh" --env "${ENV_FILE}" --provider 2>/dev/nu
 case "${provider}" in
   ""|ausente)
     echo "tm: TASK_MANAGER_PROVIDER ausente (nem no ambiente, nem em ${ENV_FILE}) — rode /onion:setup-integration" >&2; exit 2 ;;
+  ilegivel)
+    echo "tm: ${ENV_FILE} existe mas está ilegível (sandbox ou permissão): não dá para saber o provider. Confira o sandbox, ou declare TASK_MANAGER_PROVIDER no ambiente." >&2; exit 2 ;;
   invalido)
     echo "tm: TASK_MANAGER_PROVIDER inválido — rode /onion:setup-integration" >&2; exit 2 ;;
   none)

@@ -10,6 +10,8 @@ item.create	required	implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir
 item.read	required	unverified	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	o adapter não registra sonda própria do GET da task; a declaração geral do arquivo não é medição
 item.update	required	implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	adapter:zoho.md§**`PATCH` e só `PATCH`**	
 item.delete	optional	implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	adapter:zoho.md§**Assimetria medida:**	DELETE para task; projeto vai por trash
+item.archive	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	adapter sem o verbo; só o Linear o tem
+item.list	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	adapter sem o verbo; só o Linear o tem
 hierarchy.subtask_create	required	implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	adapter:zoho.md§Medido em 2026-09-30, e **conferido no corpo**	parental_info aninhado
 hierarchy.subtask_list	required	unverified	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	adapter:zoho.md§O parâmetro é aceito e ignorado	medido o NEGATIVO (o filtro do servidor é ignorado); o filtro no cliente por parental_info na listagem não foi registrado como medido
 hierarchy.epic	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	milestone está documentado em prosa (§Hierarquia), sem a superfície createEpic
@@ -18,6 +20,7 @@ priority.set	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para desc
 estimate.points	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	
 estimate.points_read	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	pontos não ancorados; o adapter não lê, então o progresso sai por contagem (progress.sh declara)
 estimate.time	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	owners_and_work traz total_work; não mapeado
+due_date.set	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	verbo próprio ausente neste adapter; só o Linear o tem
 comment.add	required	implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	adapter:zoho.md§o campo é `comment`	markdown simples
 comment.list	required	implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	adapter:zoho.md§"comments": [...]	
 activity.list	optional	not_implemented	v3 (/api/v3/portal/{id}); V2 só para descobrir o portal	-	histórico de mudanças da task (SAC-116): o adapter não lê; Zoho Projects é a 3ª fatia (ordem do maestro, 2026-10-12)

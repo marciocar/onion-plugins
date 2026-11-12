@@ -7,6 +7,28 @@
 #        --chosen "<opção escolhida>" --rejected "<a|b|c>" --date AAAA-MM-DD --question "<pergunta>" [--other]
 #   bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-decide-seal.sh <grafo.kg.yaml> --new <D_ID> --label "<afirmação ≤280>" \
 #        --link <ID_EXISTENTE> [--edge-type TRACES_TO] [--impact 3] --chosen ... --rejected ... --date ... --question ...
+#   bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-decide-seal.sh --batch <lote.tsv> --preview --date AAAA-MM-DD --question "<pergunta>"   (a lista VISÍVEL + o sha256)
+#   bash ${CLAUDE_PLUGIN_ROOT}/validation/kg-decide-seal.sh --batch <lote.tsv> --approve <sha256> --date AAAA-MM-DD --question "<pergunta>"
+#
+# MODO LOTE (a triagem do /onion:decide, cláusula 10 da doutrina; D_FORGE_DECIDE_BATCH_TRIAGE_MODE_1111):
+#   O lote é TSV, uma linha por nó: grafo · nó · destino · ref · prazo · motivo (6 colunas; `#` e vazia ignoradas;
+#   o grafo como o medidor o imprime, relativo à raiz, rodando da raiz).
+#     obsolete  ref = o SUCESSOR, obrigatório: ID do mesmo grafo, ou <caminho relativo à raiz>.kg.yaml#<ID> de outro ·
+#               prazo `-` → status: superseded, plane DEV, verified_at, proveniência testimony da aprovação em lote,
+#               motivo na narrative (a anterior verbatim) e a aresta SUPERSEDES: em `edges` (mesmo grafo) ou em
+#               `external_edges` com from "<grafo>#<ID>" (contrato v4.3); a que já existe não duplica. Sem sucessor
+#               não há obsoleto: o contrato reprova `integrity.superseded-without-successor` (recusa já no --preview)
+#     request   ref = PAPEL em minúsculas (ceo, juridico, sessao-x; nunca `maestro`) · prazo AAAA-MM-DD → o nó
+#               SEGUE open, com owner: <papel>, x_due: <prazo> e o pedido na narrative
+#   A APROVAÇÃO é o sha256 do arquivo do lote + a --date + a --question, mostrado ao maestro com a lista (--preview)
+#   numa pergunta só: o "sim" vira --approve. Lote, data ou pergunta que mudaram depois têm outro sha e são RECUSADOS.
+#   Datas (--date e prazo) são AAAA-MM-DD estritas e reais, a régua do selo unitário.
+#   RECUSA (rc 2, nada escrito): sem --approve, sha diferente, destino (a) `measure` (fecha pelo /onion:kg-freshness,
+#   nunca pelo selador) e (d) `maestro` (vai à rodada normal), destino fora da lista, nó que não está open, cego,
+#   repetido ou inexistente, ref de obsoleto fora do grafo, pedido sem papel ou com prazo antes da data.
+#   GARANTIA: o modo externo confere o lote inteiro, guarda cópia de TODO grafo e chama este script por grafo (que
+#   reconfere tudo e passa pelo MESMO gate do selo único: radar, contrato, lint de nomes). Um grafo que reprova
+#   desfaz o LOTE INTEIRO byte a byte (rc 3; rc 2 se a recusa veio no passo 0 de um grafo).
 #
 # O que escreve (nó existente decision|question `open`):
 #   status: done · verified_at · verified_against · provenance {source, locator, method, locality: pessoa}
@@ -56,6 +78,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RADAR="${DECIDE_SEAL_RADAR:-${HERE}/kg-radar.sh}"
 [ -n "${DECIDE_SEAL_RADAR:-}" ] && echo "kg-decide-seal: ⚠️ override ativo — DECIDE_SEAL_RADAR=${DECIDE_SEAL_RADAR} (não é o gate de produção)" >&2
 GRAPH=""; NODE=""; NEW=""; CHOSEN=""; REJECTED=""; DATE=""; QUESTION=""; OTHER="0"; LABEL=""; LINK=""; ETYPE="TRACES_TO"; IMPACT="3"
+BATCH=""; APPROVE=""; PREVIEW="0"
 _need() { [ $# -ge 2 ] && [ -n "$2" ] || { echo "kg-decide-seal: $1 exige um valor" >&2; exit 2; }; }
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -69,20 +92,320 @@ while [ $# -gt 0 ]; do
     --edge-type) _need "$@"; ETYPE="$2"; shift ;;
     --impact) _need "$@"; IMPACT="$2"; shift ;;
     --other) OTHER="1" ;;
+    --batch) _need "$@"; BATCH="$2"; shift ;;
+    --approve) _need "$@"; APPROVE="$2"; shift ;;
+    --preview) PREVIEW="1" ;;
     --*) echo "kg-decide-seal: opção desconhecida: $1" >&2; exit 2 ;;
     *) if [ -z "${GRAPH}" ]; then GRAPH="$1"; elif [ -z "${NODE}" ]; then NODE="$1"; else echo "kg-decide-seal: argumento a mais: $1" >&2; exit 2; fi ;;
   esac
   shift
 done
+# ── MODO LOTE (a triagem do /onion:decide, cláusula 10 da doutrina) ──────────────────────────────────────
+# O validador e o escritor do lote são UM só código Python (_lot_py), usado pelo modo externo (que confere o lote
+# inteiro e chama este mesmo script uma vez por grafo) e pelo modo por grafo (que reconfere TUDO de novo: ele pode
+# ser chamado direto, e a aprovação vale igual). Forma do lote, a garantia e o que ele recusa: no cabeçalho.
+_lot_py() {  # $1=check|write $2=lote $3=aprovação $4=data $5=pergunta $6=grafo(realpath)|- $7=stage|- $8=preview(0|1)
+  PYTHONDONTWRITEBYTECODE=1 python3 -I -B - "$@" <<'LOT'
+import sys, os, re, hashlib, datetime
+mode, lot, approve, date, question, graph, stage, preview = sys.argv[1:9]
+def die(m): print('kg-decide-seal: lote recusado — ' + m + ' — nada escrito', file=sys.stderr); sys.exit(2)
+try:
+    import yaml
+except ImportError:
+    die('PyYAML ausente (fail-loud)')
+try: raw = open(lot, 'rb').read()
+except OSError as e: die(f'lote ilegível: {e}')
+one = lambda s: ' '.join(str(s).split())
+# DATA ESTRITA, a mesma régua do selo unitário: AAAA-MM-DD com hífens E data real. Só o fromisoformat não basta: no
+# Python 3.11+ ele aceita `20261201` (achado B2 do refutador independente, 2026-11-11: o prazo virava x_due que o
+# medidor não lê, e `--date 2025-13-45` saía rc 0 porque o lote só conferia o regex).
+def strict_date(v):
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', v or ''): return False
+    try: datetime.date.fromisoformat(v); return True
+    except ValueError: return False
+if not strict_date(date): die(f'--date fora de AAAA-MM-DD, ou data que não existe: {date!r}')
+today = os.environ.get('DECIDE_SEAL_TODAY') or datetime.date.today().isoformat()
+if date > today: die(f'--date no futuro ({date} > {today})')
+if not one(question): die('falta --question (o texto da pergunta de aprovação do lote) — também no --preview: ela entra na aprovação')
+# A APROVAÇÃO cobre o lote E a data E a pergunta (limite curado na passada independente): o mesmo lote reaprovado
+# com outra pergunta ou data é outra aprovação, e o sha mostrado no --preview é o que o --approve tem de repetir
+sha = hashlib.sha256(raw + b'\n\0date=' + date.encode() + b'\n\0question=' + one(question).encode('utf-8')).hexdigest()
+try: text = raw.decode('utf-8')
+except UnicodeDecodeError: die('lote não é UTF-8')
+items = []; seen = set()
+_rt = {}
+def root_of(rg):  # a raiz git do grafo: é dela que sai o <grafo>#<ID> das external_edges (contrato v4.3)
+    d0 = os.path.dirname(rg)
+    if d0 not in _rt:
+        import subprocess
+        r = subprocess.run(['git', '-C', d0, 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
+        _rt[d0] = r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+    return _rt[d0]
+for k, l in enumerate(text.split('\n'), 1):
+    if not l.strip() or l.lstrip().startswith('#'): continue
+    f = l.split('\t')
+    if len(f) != 6: die(f'linha {k}: esperava 6 colunas TAB (grafo, nó, destino, ref, prazo, motivo), achei {len(f)}')
+    g, nid, dest, ref, due, why = [x.strip() for x in f]
+    if dest in ('measure', 'medição', 'medicao', 'a', '(a)'):
+        die(f'linha {k} ({nid}): destino (a) FECHA POR MEDIÇÃO e vai para o /onion:kg-freshness — nunca pelo selador, que grava testemunho do maestro')
+    if dest in ('maestro', 'd', '(d)'):
+        die(f'linha {k} ({nid}): destino (d) é do maestro e entra na rodada NORMAL do /onion:decide, com pergunta própria — não vai no lote')
+    if dest not in ('obsolete', 'request'): die(f'linha {k}: destino fora da lista (obsolete | request): {dest!r}')
+    if not one(why): die(f'linha {k} ({nid}): motivo vazio — obsoleto e pedido levam o porquê')
+    if any(c in why for c in '«»'): die(f'linha {k}: motivo com « ou » (delimitadores do selo)')
+    if not os.path.isfile(g): die(f'linha {k}: grafo inexistente: {g}')
+    rg = os.path.realpath(g)
+    if (rg, nid) in seen: die(f'linha {k}: {nid} repetido no lote')
+    seen.add((rg, nid))
+    if dest == 'obsolete':
+        if due != '-': die(f'linha {k} ({nid}): obsoleto não leva prazo (use -)')
+        # SEM SUCESSOR NÃO HÁ OBSOLETO (achado B1, bloqueava): `superseded` sem SUPERSEDES chegando reprova no contrato
+        # (integrity.superseded-without-successor) e o lote inteiro voltava. Nada o supera? Então não é (c): é (a) ou (d).
+        if ref == '-' or not ref:
+            die(f'linha {k} ({nid}): obsoleto SEM SUCESSOR — diga quem o supera (ID do mesmo grafo, ou <grafo>#<ID> de outro, relativo à raiz); sem sucessor o contrato reprova (integrity.superseded-without-successor), e então o destino é (a) medição ou (d) maestro')
+        if not re.fullmatch(r'(?:[A-Za-z0-9._/-]+\.kg\.yaml#)?[A-Za-z][A-Za-z0-9_]*', ref) or ref.startswith('/') or '..' in ref.split('#')[0].split('/'):
+            die(f'linha {k} ({nid}): ref do obsoleto é ID (mesmo grafo) ou <caminho relativo à raiz>.kg.yaml#<ID>: {ref!r}')
+    else:
+        if not re.fullmatch(r'[a-z][a-z0-9._-]{0,47}', ref) or ref == 'maestro':
+            die(f'linha {k} ({nid}): o pedido vai a um PAPEL em minúsculas (ceo, juridico, financeiro, sessao-x), nunca ao maestro nem a nome de pessoa: {ref!r}')
+        if not strict_date(due): die(f'linha {k} ({nid}): prazo do pedido fora de AAAA-MM-DD, ou data que não existe: {due!r}')
+        if due < date: die(f'linha {k} ({nid}): prazo {due} anterior à data do selo {date}')
+    why = one(why); why = why if why[-1] in '.!?' else why + '.'
+    items.append({'k': k, 'g': g, 'rg': rg, 'id': nid, 'dest': dest, 'ref': ref, 'due': due, 'why': why})
+if not items: die('lote sem nenhum item')
+# cada nó: existe uma vez, é decision|question, está open, sem campo cego; o ref do obsoleto existe no grafo
+cache = {}
+def load(rg):
+    if rg not in cache:
+        try: cache[rg] = open(rg, encoding='utf-8').read()
+        except OSError as e: die(f'grafo ilegível: {e}')
+    return cache[rg]
+def blind(o, top=True):
+    out = []
+    if isinstance(o, dict):
+        for kk, v in o.items():
+            if re.search(r'blind|cego', str(kk), re.I): out.append(str(kk))
+            if isinstance(v, (dict, list)): out += blind(v, False)
+            elif not top and isinstance(v, str) and re.search(r'blind|cego', v, re.I): out.append(f'{kk}={v}')
+    elif isinstance(o, list):
+        for v in o: out += blind(v, False)
+    return out
+# no modo por grafo, o ESTADO dos nós só se confere nos itens deste grafo: os de grafos anteriores do mesmo lote já
+# foram gravados pelo modo externo (e deixaram de estar open); a forma e o sha do lote inteiro seguem conferidos acima
+for it in items:
+    if mode == 'write' and it['rg'] != graph: continue
+    try: d = yaml.safe_load(load(it['rg'])) or {}
+    except Exception as e: die(f"{it['g']}: YAML ilegível ({one(e)[:120]})")
+    ns = [n for n in (d.get('nodes') or []) if isinstance(n, dict) and str(n.get('id')) == it['id']]
+    if len(ns) != 1: die(f"{it['id']}: {'inexistente' if not ns else 'duplicado'} em {it['g']}")
+    n = ns[0]
+    if n.get('node_type') not in ('decision', 'question'): die(f"{it['id']} é {n.get('node_type')}, não decision|question")
+    if n.get('status') != 'open': die(f"{it['id']} está {n.get('status')}, não open — a triagem só toca o que está aberto")
+    b = blind(n)
+    if b: die(f"{it['id']} tem campo CEGO ({', '.join(b)})")
+    if it['dest'] == 'obsolete':
+        if '#' in it['ref']:
+            # entre grafos: o sucessor vive noutro grafo RASTREADO da mesma raiz, e a superação vira external_edges
+            # SUPERSEDES (from externo, to o nó) — a forma que o contrato lê como sucessor declarado
+            ep, eid = it['ref'].split('#', 1)
+            root = root_of(it['rg'])
+            if not root: die(f"{it['id']}: o grafo não está num repo git — sem raiz, o <grafo>#<ID> do sucessor não se resolve")
+            ef = os.path.join(root, ep)
+            if os.path.realpath(ef) == it['rg']: die(f"{it['id']}: o sucessor está no MESMO grafo — use só o ID ({eid})")
+            if not os.path.isfile(ef): die(f"{it['id']}: o grafo do sucessor não existe na raiz: {ep}")
+            try: ed = yaml.safe_load(open(ef, encoding='utf-8')) or {}
+            except Exception as e: die(f"{ep}: YAML ilegível ({one(e)[:120]})")
+            if not any(isinstance(x, dict) and str(x.get('id')) == eid for x in (ed.get('nodes') or [])):
+                die(f"{it['id']}: o sucessor {eid} não existe em {ep}")
+        else:
+            if it['ref'] == it['id']: die(f"{it['id']}: um nó não supera a si mesmo")
+            if not any(isinstance(x, dict) and str(x.get('id')) == it['ref'] for x in (d.get('nodes') or [])):
+                die(f"{it['id']}: o nó que o supera ({it['ref']}) não existe em {it['g']} — se está em outro grafo, escreva <grafo>#<ID>")
+    it['node'] = n
+# a aprovação se confere DEPOIS da forma das linhas e do estado dos nós: destino (a)/(d) e data torta e nó fechado recusam pelo nome, não por sha
+if preview != '1':
+    if not approve: die('falta --approve <sha256 da aprovação>: o lote só se aplica com a aprovação do maestro, dada sobre a lista VISÍVEL (rode --preview com a mesma --date e --question)')
+    if approve.strip().lower() != sha:
+        die(f'o lote, a data ou a pergunta mudaram depois da aprovação (sha256 aprovado {approve[:12]}…, atual {sha[:12]}…): item fora do lote aprovado não se grava; mostre a lista de novo e peça outra aprovação')
+if mode == 'check':
+    if preview == '1':
+        print(f'# lote de triagem — {len(items)} item(ns) · data {date} · aprovação sha256 {sha}')
+        print(f'Pergunta: «{one(question)}»')
+        print('Aprovação do maestro: UMA pergunta com esta lista visível; o "sim" vira `--approve ' + sha + '`.')
+        for it in items:
+            if it['dest'] == 'obsolete':
+                print(f"- (c) OBSOLETO `{it['id']}` — {it['g']} — {it['why']} · superado por `{it['ref']}`")
+            else:
+                print(f"- (b) PEDIDO a `{it['ref']}` até {it['due']}: `{it['id']}` — {it['g']} — {it['why']}")
+    else:
+        for rg in sorted({it['rg'] for it in items}): print(rg)
+    sys.exit(0)
+# ── write: só os itens deste grafo, no STAGE ──
+mine = [it for it in items if it['rg'] == graph]
+if not mine: die(f'nenhum item do lote é deste grafo ({graph})')
+txt = load(graph); lines = txt.split('\n')
+def q(s): return '"' + one(s).replace('\\', '\\\\').replace('"', '\\"') + '"'
+sha12 = sha[:12]
+for it in mine:
+    nid = it['id']; n = it['node']
+    hits = [i for i, l in enumerate(lines) if re.match(r'^(\s*)-\s+id:\s*["\']?' + re.escape(nid) + r'["\']?\s*(#.*)?$', l)]
+    if len(hits) != 1: die(f'{nid}: não achei UMA linha `- id:` em forma de bloco (achei {len(hits)})')
+    i = hits[0]; ind = len(lines[i]) - len(lines[i].lstrip()); fi = ind + 2
+    end = len(lines)
+    for j in range(i + 1, len(lines)):
+        l = lines[j]
+        if not l.strip(): continue
+        lind = len(l) - len(l.lstrip())
+        if lind < ind or (lind == ind and l.lstrip().startswith('-')) or (lind <= ind and l.lstrip().startswith('#')):
+            end = j; break
+    while end > i + 1 and not lines[end - 1].strip(): end -= 1
+    if it['dest'] == 'obsolete':
+        drop = {'status', 'verified_at', 'verified_against', 'provenance', 'narrative', 'plane'}
+    else:
+        drop = {'narrative', 'owner', 'x_due'}
+    body = []; k = i + 1
+    while k < end:
+        l = lines[k]; lind = len(l) - len(l.lstrip())
+        m = re.match(r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:', l)
+        if lind == fi and m and m.group(1) in drop:
+            k += 1
+            while k < end and (not lines[k].strip() or len(lines[k]) - len(lines[k].lstrip()) > fi): k += 1
+            continue
+        body.append(l); k += 1
+    oldn = n.get('narrative')
+    if isinstance(oldn, list): oldn = '\n'.join(f'- {x}' for x in oldn)
+    oldn = '' if oldn is None else str(oldn).rstrip('\n')
+    s = ' ' * fi
+    approved = f'aprovado pelo maestro numa pergunta só, com a lista visível: «{one(question)}»'
+    if it['dest'] == 'obsolete':
+        prev = []
+        if n.get('verified_against'): prev.append(f'verified_against anterior: «{one(n["verified_against"])}»')
+        if isinstance(n.get('provenance'), dict) and n['provenance']:
+            prev.append('proveniência anterior: ' + ' · '.join(f'{kk} «{one(v)}»' for kk, v in n['provenance'].items()))
+        if n.get('plane') == 'PROD': prev.append('plane anterior: PROD, rebaixado a DEV porque a base do selo é testemunho')
+        tail = prev + [f'Obsoleto pela triagem em lote do /onion:decide em {date} (lote {sha12}, {approved}): {it["why"]}'
+                       + f' Superado por {it["ref"]}.']
+        add = [f'{s}status: superseded', f'{s}plane: DEV', f'{s}verified_at: "{date}"',
+               f'{s}verified_against: {q(f"triagem em lote aprovada pelo maestro em {date} (lote {sha12}): obsoleto")}']
+        nb = (oldn.split('\n') + [''] if oldn else []) + tail
+        add += [s + 'narrative: |-'] + [(s + '  ' + x) if x.strip() else '' for x in nb]
+        add += [f'{s}provenance:', f'{s}  source: "maestro, na triagem em lote do /onion:decide"',
+                f'{s}  locator: {q(f"lote {sha12} de {date}")}',
+                f'{s}  method: {q(f"testimony: aprovação do maestro, em lote, da triagem do /onion:decide, {date}")}',
+                f'{s}  locality: "pessoa"']
+    else:
+        tail = [f'Pedido a {it["ref"]} pela triagem em lote do /onion:decide em {date} (lote {sha12}, {approved}), prazo {it["due"]}: {it["why"]}']
+        nb = (oldn.split('\n') + [''] if oldn else []) + tail
+        add = [f'{s}owner: {it["ref"]}', f'{s}x_due: "{it["due"]}"', s + 'narrative: |-'] + [(s + '  ' + x) if x.strip() else '' for x in nb]
+    lines = lines[:i + 1] + body + add + lines[end:]
+# arestas SUPERSEDES dos obsoletos com ref (a que já existe não se duplica)
+try: d0 = yaml.safe_load(txt) or {}
+except Exception: d0 = {}
+have = {(str(e.get('from')), str(e.get('to')), e.get('edge_type')) for e in (d0.get('edges') or []) if isinstance(e, dict)}
+newe = [(it['ref'], it['id']) for it in mine if it['dest'] == 'obsolete' and '#' not in it['ref'] and (it['ref'], it['id'], 'SUPERSEDES') not in have]
+haveX = {(str(e.get('from')), str(e.get('to')), e.get('edge_type')) for e in (d0.get('external_edges') or []) if isinstance(e, dict)}
+newx = [(it['ref'], it['id']) for it in mine if it['dest'] == 'obsolete' and '#' in it['ref'] and (it['ref'], it['id'], 'SUPERSEDES') not in haveX]
+if newx:
+    xt = [i for i, l in enumerate(lines) if re.match(r'^external_edges\s*:', l)]
+    if len(xt) > 1: die('mais de um `external_edges:` no nível 0')
+    if xt and re.match(r'^external_edges\s*:\s*\[\s*\]\s*$', lines[xt[0]]): lines[xt[0]] = 'external_edges:'
+    elif xt and not re.match(r'^external_edges\s*:\s*$', lines[xt[0]]): die('`external_edges:` fora da forma de bloco — escrita recusada')
+    if not xt:
+        while lines and not lines[-1].strip(): lines.pop()
+        lines += ['external_edges:']; xt = [len(lines) - 1]
+    a = xt[0]; b = len(lines)
+    for j in range(a + 1, len(lines)):
+        if re.match(r'^[A-Za-z_]', lines[j]): b = j; break
+    while b > a + 1 and not lines[b - 1].strip(): b -= 1
+    xi = next((len(l) - len(l.lstrip()) for l in lines[a + 1:b] if re.match(r'^\s*-\s+(from|to):', l)), 2)
+    xs = ' ' * (xi + 2)
+    add = []
+    for fr, to in newx: add += [f'{" " * xi}- from: "{fr}"', f'{xs}to: {to}', f'{xs}edge_type: SUPERSEDES']
+    lines = lines[:b] + add + lines[b:]
+if newe:
+    et = [i for i, l in enumerate(lines) if re.match(r'^edges\s*:', l)]
+    if len(et) > 1: die('mais de um `edges:` no nível 0')
+    if et and re.match(r'^edges\s*:\s*\[\s*\]\s*$', lines[et[0]]): lines[et[0]] = 'edges:'
+    elif et and not re.match(r'^edges\s*:\s*$', lines[et[0]]): die('`edges:` fora da forma de bloco — escrita recusada')
+    if not et:
+        while lines and not lines[-1].strip(): lines.pop()
+        lines += ['edges:']; et = [len(lines) - 1]
+    a = et[0]; b = len(lines)
+    for j in range(a + 1, len(lines)):
+        if re.match(r'^[A-Za-z_]', lines[j]): b = j; break
+    while b > a + 1 and not lines[b - 1].strip(): b -= 1
+    ei = next((len(l) - len(l.lstrip()) for l in lines[a + 1:b] if re.match(r'^\s*-\s+from:', l)), 2)
+    es = ' ' * (ei + 2)
+    add = []
+    for fr, to in newe: add += [f'{" " * ei}- from: {fr}', f'{es}to: {to}', f'{es}edge_type: SUPERSEDES']
+    lines = lines[:b] + add + lines[b:]
+out = '\n'.join(lines)
+if not out.endswith('\n'): out += '\n'
+try: d2 = yaml.safe_load(out) or {}
+except Exception as e: die(f'a escrita não parseia ({one(e)[:120]})')
+if len(d2.get('nodes') or []) != len(d0.get('nodes') or []): die('a escrita não releu com o mesmo número de nós')
+by2 = {str(x.get('id')): x for x in (d2.get('nodes') or []) if isinstance(x, dict)}
+for it in mine:
+    n2 = by2.get(it['id']) or {}
+    oldn = it['node'].get('narrative')
+    oldn = '' if oldn is None else ('\n'.join(f'- {x}' for x in oldn) if isinstance(oldn, list) else str(oldn).rstrip('\n'))
+    ok = str(n2.get('narrative', '')).startswith(oldn) and f'lote {sha12}' in str(n2.get('narrative', ''))
+    if it['dest'] == 'obsolete':
+        ok = ok and n2.get('status') == 'superseded' and str(n2.get('verified_at')) == date and n2.get('plane') == 'DEV'
+    else:
+        ok = ok and n2.get('status') == 'open' and n2.get('owner') == it['ref'] and str(n2.get('x_due')) == it['due']
+    if not ok: die(f"{it['id']}: a escrita não releu como escrita")
+open(stage, 'w', encoding='utf-8').write(out)
+print(f"kg-decide-seal: lote {sha12} em {graph}: " + ', '.join(f"{it['id']}→{'obsoleto' if it['dest'] == 'obsolete' else 'pedido a ' + it['ref']}" for it in mine))
+LOT
+}
+if [ -n "${BATCH}" ] && [ -z "${GRAPH}" ]; then
+  [ -z "${NODE}${NEW}${CHOSEN}${REJECTED}${LABEL}${LINK}" ] && [ "${OTHER}" = "0" ] \
+    || { echo "kg-decide-seal: --batch não se mistura com nó, --new, --chosen, --rejected, --label, --link nem --other" >&2; exit 2; }
+  command -v python3 >/dev/null 2>&1 || { echo "kg-decide-seal: python3 ausente" >&2; exit 2; }
+  if [ "${PREVIEW}" = "1" ]; then _lot_py check "${BATCH}" "" "${DATE}" "${QUESTION}" - - 1; exit $?; fi
+  LOTG="$(_lot_py check "${BATCH}" "${APPROVE}" "${DATE}" "${QUESTION}" - - 0)" || exit 2
+  # cópia de TODO grafo do lote antes do 1º: um grafo que reprova desfaz o lote INTEIRO, não só ele
+  LOTBK="$(mktemp -d)"; trap 'rm -rf "${LOTBK}"' EXIT
+  _gi=0; declare -a _LG=()
+  while IFS= read -r _g; do
+    [ -n "${_g}" ] || continue
+    _gi=$((_gi + 1)); _LG+=("${_g}"); cp -p "${_g}" "${LOTBK}/${_gi}"; sha256sum "${_g}" | cut -d' ' -f1 > "${LOTBK}/${_gi}.sha"
+  done <<< "${LOTG}"
+  _lrc=0; _gi=0
+  for _g in "${_LG[@]}"; do
+    _gi=$((_gi + 1))
+    bash "$0" "${_g}" --batch "${BATCH}" --approve "${APPROVE}" --date "${DATE}" --question "${QUESTION}" || { _lrc=$?; break; }
+  done
+  if [ "${_lrc}" -ne 0 ]; then
+    _gi=0
+    for _g in "${_LG[@]}"; do
+      _gi=$((_gi + 1)); cp -p "${LOTBK}/${_gi}" "${_g}"
+      [ "$(sha256sum "${_g}" | cut -d' ' -f1)" = "$(cat "${LOTBK}/${_gi}.sha")" ] \
+        || { echo "❌ kg-decide-seal: o DESFAZER do lote falhou em ${_g} — restaure à mão (git checkout). NÃO COMMITE." >&2; exit 9; }
+    done
+    echo "kg-decide-seal: o lote NÃO foi aplicado (rc ${_lrc} num grafo) — os ${#_LG[@]} grafo(s) voltaram byte a byte" >&2
+    [ "${_lrc}" -eq 2 ] && exit 2
+    exit 3
+  fi
+  echo "kg-decide-seal: ✅ lote aplicado em ${#_LG[@]} grafo(s), cada um com o gate verde"
+  exit 0
+fi
+if [ -n "${BATCH}" ]; then
+  [ -z "${NODE}${NEW}${CHOSEN}${REJECTED}${LABEL}${LINK}" ] && [ "${OTHER}" = "0" ] && [ "${PREVIEW}" = "0" ] \
+    || { echo "kg-decide-seal: --batch por grafo não se mistura com nó, --new, --chosen, --rejected, --label, --link, --other nem --preview" >&2; exit 2; }
+fi
 [ -n "${GRAPH}" ] || { sed -n '/^# Uso:/,/^# O que escreve/p' "$0" | sed '$d' >&2; exit 2; }
 [ -f "${GRAPH}" ] || { echo "kg-decide-seal: grafo inexistente: ${GRAPH}" >&2; exit 2; }
 # caminho ABSOLUTO desde já: o gate do contrato roda com `cd` na raiz, e um relativo deixava o contrato
 # "não julgado" e o selo saindo 0 (achado 6 do refutador, 2026-10-12)
 GRAPH="$(realpath -- "${GRAPH}")"
 if [ -n "${NEW}" ] && [ -n "${NODE}" ]; then echo "kg-decide-seal: ou <NODE_ID> ou --new <D_ID>, nunca os dois" >&2; exit 2; fi
+if [ -z "${BATCH}" ]; then
 [ -n "${NEW}${NODE}" ] || { echo "kg-decide-seal: falta o nó (<NODE_ID> ou --new <D_ID>)" >&2; exit 2; }
 [ -n "${CHOSEN}" ] || { echo "kg-decide-seal: falta --chosen (a opção que o maestro escolheu, literal)" >&2; exit 2; }
 [ -n "${REJECTED}" ] || { echo "kg-decide-seal: falta --rejected (as opções oferecidas e descartadas, separadas por |) — o selo registra o que foi recusado" >&2; exit 2; }
+fi
 [ -n "${DATE}" ] || { echo "kg-decide-seal: falta --date AAAA-MM-DD" >&2; exit 2; }
 # a PERGUNTA é obrigatória: é o único rastro, no selo, de que houve pergunta (achado 8 do refutador)
 [ -n "${QUESTION}" ] || { echo "kg-decide-seal: falta --question (o texto da pergunta feita ao maestro) — selo sem pergunta registrada é testemunho sem rastro" >&2; exit 2; }
@@ -114,18 +437,24 @@ fi
 ROOT="$(git -C "$(dirname "${GRAPH}")" rev-parse --show-toplevel 2>/dev/null || true)"
 # Leitor do contrato, por ordem: (1) o vendor do KG-SSOT (core e adotantes) pelo kg-contract-check, que mede
 # a piora contra o HEAD; (2) o leitor de referência do PRÓPRIO produto (`tools/kg_validate.py`), num repo que
-# é o KG-SSOT e por isso não o vendoriza — julgamento absoluto do grafo (rc 0 passa, 1 reprova), e o passo 0
+# é o KG-SSOT (o spec/release.json da raiz declara a tag kg-ssot-v*, pelo resolver único) e por isso não o vendoriza — julgamento absoluto do grafo (rc 0 passa, 1 reprova), e o passo 0
 # já recusou o grafo que reprovava antes, então reprovar depois é culpa do selo. Sinal de campo do
 # adotante KG-SSOT, 2026-10-12: lá o selador selava sem conferir o contrato. (3) nenhum: CRC=99, e a mensagem
 # diz qual falta — repo git ou leitor de contrato.
 CONTRACT_READER=""
+# a pasta das ferramentas pelo resolver único (KG_SSOT_TOOLS → vendor/kg-ssot/tools → tools/ do produto). O kind
+# decide o leitor: no PRÓPRIO produto (source) segue o leitor de referência absoluto, como antes; nos outros, o
+# kg-contract-check, que resolve a mesma pasta.
+. "${HERE}/../utils/kg/kgssot-tools.sh" 2>/dev/null || kgssot_tools_resolve() {  # sem o resolver: o vendor de hoje
+  KGSSOT_TOOLS="$1/vendor/kg-ssot/tools"; KGSSOT_TOOLS_KIND=vendor; [ -d "${KGSSOT_TOOLS}" ] && return 0; KGSSOT_TOOLS=""; KGSSOT_TOOLS_KIND=""; return 1; }
+KGSSOT_TOOLS=""; KGSSOT_TOOLS_KIND=""; [ -z "${ROOT}" ] || kgssot_tools_resolve "${ROOT}" || true
 _contract() {  # COUT/CRC do contrato sobre o grafo; CRC=99 quando não há leitor de contrato
-  if [ -n "${ROOT}" ] && [ -f "${ROOT}/vendor/kg-ssot/tools/kg_gate.py" ] && [ -f "${HERE}/kg-contract-check.sh" ]; then
-    CONTRACT_READER="vendor/kg-ssot (kg-contract-check)"
+  if [ -n "${ROOT}" ] && [ "${KGSSOT_TOOLS_KIND}" != source ] && [ -n "${KGSSOT_TOOLS}" ] && [ -f "${KGSSOT_TOOLS}/kg_gate.py" ] && [ -f "${HERE}/kg-contract-check.sh" ]; then
+    CONTRACT_READER="${KGSSOT_TOOLS_KIND:-vendor} kg-ssot (kg-contract-check)"
     COUT="$(cd "${ROOT}" && bash "${HERE}/kg-contract-check.sh" "${GRAPH}" 2>&1)"; CRC=$?
-  elif [ -n "${ROOT}" ] && [ -f "${ROOT}/tools/kg_validate.py" ]; then
+  elif [ -n "${ROOT}" ] && [ "${KGSSOT_TOOLS_KIND}" = source ] && [ -f "${KGSSOT_TOOLS}/kg_validate.py" ]; then
     CONTRACT_READER="tools/kg_validate.py (leitor de referência do produto)"
-    COUT="$(cd "${ROOT}" && python3 -I -B "${ROOT}/tools/kg_validate.py" "${GRAPH}" 2>&1)"; CRC=$?
+    COUT="$(cd "${ROOT}" && python3 -I -B "${KGSSOT_TOOLS}/kg_validate.py" "${GRAPH}" 2>&1)"; CRC=$?
   else COUT=""; CRC=99; fi
 }
 # e o CONTRATO também no passo 0 (achado 5 do refutador): dívida que o grafo já tinha na árvore seria
@@ -143,9 +472,8 @@ fi
 # porquê em VOCAB_WHY (declarado no fim, nunca calado). A comparação antes×depois é só do grafo tocado.
 VOCAB_READER=""; VOCAB_WHY=""; VOCAB_REL=""; VOCAB_EXT=()
 if [ -z "${ROOT}" ]; then VOCAB_WHY="fora de repo git"
-elif [ -f "${ROOT}/vendor/kg-ssot/tools/kg_vocab.py" ]; then VOCAB_READER="${ROOT}/vendor/kg-ssot/tools/kg_vocab.py"
-elif [ -f "${ROOT}/tools/kg_vocab.py" ]; then VOCAB_READER="${ROOT}/tools/kg_vocab.py"
-else VOCAB_WHY="o repo não tem o kg_vocab.py (nem vendor/kg-ssot/tools nem tools/)"; fi
+elif [ -n "${KGSSOT_TOOLS}" ] && [ -f "${KGSSOT_TOOLS}/kg_vocab.py" ]; then VOCAB_READER="${KGSSOT_TOOLS}/kg_vocab.py"
+else VOCAB_WHY="o repo não tem o kg_vocab.py (nem KG_SSOT_TOOLS, nem vendor/kg-ssot/tools, nem tools/ do produto)"; fi
 if [ -n "${VOCAB_READER}" ]; then
   # o caminho do grafo como o lint o escreve (relativo à raiz); python e não `realpath --relative-to`, que é só GNU
   VOCAB_REL="$(python3 -I -c 'import os, sys; print(os.path.relpath(os.path.realpath(sys.argv[2]), os.path.realpath(sys.argv[1])))' "${ROOT}" "${GRAPH}")"
@@ -174,6 +502,10 @@ cp -p "${GRAPH}" "${BK}"
 H0="$(sha256sum "${GRAPH}" | cut -d' ' -f1)"
 
 # a escrita vai PRIMEIRO para o STAGE: o teto (abaixo) julga o grafo como ficaria, e só então ele vai ao disco
+if [ -n "${BATCH}" ]; then
+  # modo lote por grafo: o MESMO validador do modo externo (aprovação, destino, nó open) e a escrita no STAGE
+  PYOUT="$(_lot_py write "${BATCH}" "${APPROVE}" "${DATE}" "${QUESTION}" "${GRAPH}" "${STAGE}" 0)" || exit 2
+else
 PYOUT="$(PYTHONDONTWRITEBYTECODE=1 python3 -I -B - "${GRAPH}" "${NODE}" "${NEW}" "${CHOSEN}" "${REJECTED}" "${DATE}" \
   "${QUESTION}" "${OTHER}" "${LABEL}" "${LINK}" "${ETYPE}" "${IMPACT}" "${STAGE}" <<'PY'
 import sys, re, datetime
@@ -332,6 +664,7 @@ open(stage, 'w', encoding='utf-8').write(out)
 print(f'kg-decide-seal: escrito {target} em {path} — escolhida «{chosen}», descartadas {len(rej)}')
 PY
 )" || exit 2
+fi
 
 # O TETO do `meta:` (dano medido, 2026-10-13): o --new criou o 65º nó num grafo que declara TETO de 64 e saiu
 # rc 0; só a REGRA 58 (O backlog cumpre as promessas do próprio `meta:`) acusou, no pr-finalize. O selador cobra o
@@ -380,7 +713,7 @@ else
   if [ -z "${ROOT}" ]; then
     echo "kg-decide-seal: fora de repo git — sem leitor de contrato; gate = só o radar (declarado)" >&2
   else
-    echo "kg-decide-seal: repo git sem leitor de contrato (nem vendor/kg-ssot nem tools/kg_validate.py) — gate = só o radar (declarado)" >&2
+    echo "kg-decide-seal: repo git sem leitor de contrato (nem KG_SSOT_TOOLS, nem vendor/kg-ssot, nem tools/kg_validate.py com spec/release.json do kg-ssot) — gate = só o radar (declarado)" >&2
   fi
 fi
 # O LINT DE NOMES, depois: o achado que o grafo tocado NÃO tinha antes é do selo → desfaz, rc 3, nomeando

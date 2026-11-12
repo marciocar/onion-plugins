@@ -31,12 +31,14 @@ task-manager/
 ├── detector.md        # Detecção de provedor
 ├── factory.md         # Factory para adapters
 ├── tm.sh              # EXECUTÁVEL: tm.sh <capability> [args] → adapter executável do provider ativo (JSON)
+├── velocity-meter.py  # Planejado × executado por categoria e data proposta com faixa (só leitura, sobre o tm.sh)
 └── adapters/
     ├── clickup.md     # Adapter ClickUp
     ├── asana.md       # Adapter Asana
     ├── jira.md        # Adapter Jira
     ├── linear.md      # Adapter Linear (API-first; MCP opcional)
     ├── linear.py      # Adapter EXECUTÁVEL do Linear (stdlib, GraphQL) — chamado pelo tm.sh
+    ├── clickup.py     # Adapter EXECUTÁVEL do ClickUp (stdlib, REST v2) — chamado pelo tm.sh (2026-11-06)
     ├── zoho.md        # Adapter Zoho Projects (API V3 apenas — sem MCP nativo)
     └── <p>.capabilities.tsv  # O que cada adapter implementa, não implementa e ninguém verificou, com fonte
 ```

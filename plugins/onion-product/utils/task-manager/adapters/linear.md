@@ -702,6 +702,7 @@ class LinearAdapter implements ITaskManager {
 | `status` | `state.type` | Mapeado por tipo |
 | `statusRaw` | `state.name` | Nome exato do estado no team |
 | `priority` | `priority` | Inteiro 0-4 |
+| `storyPoints` | `estimate` | Inteiro na escala do team (`Team.issueEstimationType`) |
 | `dueDate` | `dueDate` | ISO 8601 (date) |
 | `startDate` | `startedAt` | ISO 8601 (datetime) |
 | `assignees` | `assignee` | Apenas 1 por issue |
@@ -795,7 +796,46 @@ Nada foi deletado nem arquivado.
 - MEDIDO AO VIVO 2026-10-11 project.list: `teams` + `projects` devolveram 1 team (SAC) e 6 projetos.
 - MEDIDO AO VIVO 2026-10-11 project.read: por id de projeto devolve o Project com seus teams; pela key `SAC` devolve o team.
 - Erro HTTP: chave inválida devolve **HTTP 401** e o executável sai rc 1 com a mensagem do Linear (a chave nunca é impressa).
-- **Não exercitado:** `item.delete` (arquivar exige confirmação do maestro) — segue `unverified` e fora do executável.
+- **Não exercitado:** `item.delete` — segue `unverified` e fora do executável. Arquivar é o `item.archive` (seção abaixo).
+
+---
+
+## 🗄️ Arquivar e listar: `item.archive` e `item.list` (2026-11-08)
+
+Nasceram do sinal da curadoria de 2026-11-07: o `issueCreate` recusou por "usage limit exceeded" com 275 issues não
+arquivadas, e o arquivamento correu por script avulso, porque o `tm.sh` não tinha o verbo.
+
+### `archiveTask(taskId, opts)` — `tm.sh item.archive <ID> [--dry-run]`
+
+Chama `issueArchive(id:) { success }` e relê `archivedAt`.
+
+- **Idempotente:** issue já arquivada volta rc 0 com `already_archived: true`, sem chamar a mutação. Um lote interrompido
+  pode ser repetido.
+- `--dry-run` lê a issue e devolve `would_archive: true`, sem escrever.
+- `success: false`, ou `success: true` com `archivedAt` vazio na releitura, sai rc 1. Se só a releitura falhar, o retorno
+  é rc 0 com `verified: false` e aviso em stderr.
+- **Medição:** o verbo só rodou na bancada offline (`run_task_manager_linear_archive_selftests`) e por isso segue
+  `unverified`. A mutação rodou no workspace real em 2026-11-07, por script avulso da curadoria (169 de 169, relato do
+  sinal, não remedido aqui). Não medido ao vivo: `issue(id:)` achar issue arquivada, de que depende a idempotência; se
+  não achar, a 2ª chamada sai rc 1 por issue não encontrada, sem escrever nada. Promover a `implemented` no primeiro
+  arquivamento real relido.
+
+### `listTasks(filter)` — `tm.sh item.list [filtros]`
+
+Filtros: `--state <nome>`, `--state-type <tipo,...>` (`triage`, `backlog`, `unstarted`, `started`, `completed`,
+`canceled`; fora disso, rc 2), `--older-than-days N` (corte por `updatedAt`, declarado em `updated_before`), `--team KEY`,
+`--include-archived`, `--limit N` (padrão 250). Segue o cursor até o limite; passou dele, `truncated: true` e aviso em stderr.
+
+Medir antes de arquivar: `tm.sh item.list --state-type completed,canceled --older-than-days 30`, depois `item.archive` em cada id.
+
+- MEDIDO AO VIVO 2026-11-08 item.list: `--state-type completed,canceled --include-archived --older-than-days 1 --limit 5` devolveu rc 0, 5 issues concluídas (SAC-297, SAC-296, SAC-295, SAC-294, SAC-291) com `archivedAt` preenchido e `truncated: true`. Só leitura, uma chamada. O `archivedAt` das 5 (2026-11-07 20:52) é posterior ao `updatedAt` delas: nessas 5, arquivar não atualizou o `updatedAt`. A 2ª página não foi exercitada ao vivo.
+- MEDIDO AO VIVO 2026-11-08 estimate.points: issue de teste SAC-368, time em Fibonacci estendida: `5` e `21` gravaram e voltaram no próprio retorno; `4` recusado rc 2 pela escala, antes da mutação; `abc` rc 2; `--clear` zerou (estimate null). Só a escala `fibonacci` foi medida ao vivo; `tShirt`, `exponential` e `linear` vêm da documentação do produto.
+- MEDIDO AO VIVO 2026-11-08 estimate.points_read: SAC-297 e SAC-368 devolveram `estimate` e a escala do time (`fibonacci`, `extended: true`, `allow_zero: false`, valores 1,2,3,5,8,13,21). O campo `estimate` também vem em `item.read` e `item.list`, com `startedAt`, `completedAt`, `canceledAt` e `dueDate` (e `labels`, `parent`, `priority`, só no list).
+- MEDIDO AO VIVO 2026-11-09 due_date.set com autor: `--set-by` numa issue de teste gravou a data, releu e deixou comentário com quem fixou; `--clear --set-by` removeu e comentou. Sem `--set-by`, rc 2 antes da rede. Em issue arquivada (SAC-368) o prazo grava e o `commentCreate` devolve `Entity not found`; o verbo sai rc 1 dizendo que o prazo já foi gravado.
+- MEDIDO AO VIVO 2026-11-09 atraso de leitura: ao aplicar 40 estimativas, 3 leituras feitas logo após `issueUpdate` (SAC-103, SAC-140, SAC-156) devolveram o valor velho, e o `item.list` seguinte devolveu o novo. A releitura agora repete com pausas de até 3 s.
+- MEDIDO AO VIVO 2026-11-09 releitura: depois de `estimate.points` e `due_date.set` o executável faz leitura separada da issue (antes confiava no retorno da mutação); exercitado na SAC-368, arquivada.
+- MEDIDO AO VIVO 2026-11-08 due_date.set: SAC-368: `2026-11-30` gravou e voltou igual; `2026-02-30` e `30/11` recusados rc 2 sem rede; `--clear` zerou.
+- MEDIDO AO VIVO 2026-11-08 item.archive: SAC-368 arquivada, `verified: true`, `archivedAt` relido; a 2ª chamada devolveu `already_archived` sem repetir a mutação.
 
 ---
 

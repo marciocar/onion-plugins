@@ -2,7 +2,7 @@
 
 Meta-fábrica do Sistema Onion: cria comandos, agentes, skills, abstrações SDAAL e knowledge bases pelos templates do framework, audita o próprio framework (evolve, dissect) e absorve skills de terceiros com proveniência.
 
-**Versão** `0.1.6` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `bronze`
+**Versão** `0.1.7` (derivada do conteúdo: anda quando o conteúdo anda) · **Licença** MIT · **Conformance** `bronze`
 
 ## Instalar
 
@@ -63,7 +63,7 @@ Invocação: `/onion-meta:<comando>` (namespace do plugin).
 | Campo | Valor |
 |---|---|
 | Origem | `marciocar/onion-evolve` (repositório privado) |
-| tree_sha (hash do conteúdo das fontes) | `1f2ae22c40f4` |
+| tree_sha (hash do conteúdo das fontes) | `4d8c4a0c2464` |
 
 A origem identifica DE ONDE este artefato foi gerado; o canal público de instalação, issues e suporte é https://github.com/marciocar/onion-plugins. Ref e data do commit de origem estão em `.claude-plugin/provenance.json`.
 

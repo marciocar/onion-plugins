@@ -20,7 +20,7 @@
 #      SHA do merge, id do run de CI dos checks exigidos), nunca com o que a sessão diz ter feito; não
 #      fecha `decision`, não faz flip de verdade (→refuted/→superseded) e não fecha pai com filho aberto.
 #  (3) E_OPINIAO_RISCOS_QUE_FALTAVAM — `gate` exige os checks do ruleset PRESENTES e verdes (CI verde
-#      vazio PARA); resíduo da REGRA 56 com Elenxo por agente SEPARADO (`elenxo_isolado: sim`); estado
+#      vazio PARA); resíduo da REGRA 56 com Elenxo por agente SEPARADO (`elenxo_isolado: true`); estado
 #      retomável por item (x_drive_pr no nó, a passada no meta); insumo STALE de impacto alto PARA; o
 #      status do task manager nunca fecha nada (o do Zoho mente por omissão); --merge DESLIGADO por
 #      padrão, e mesmo ligado nunca para item `decision`.
@@ -47,7 +47,7 @@
 #    invocação do /onion:drive. O que é mecânico: o merge não liga por omissão, e a passada que o ligou
 #    fica registrada no grafo e nomeada no checkpoint, que viaja no diff do lote.
 #  · O budget em tokens é DECLARADO pela sessão (`charge`). O teto de itens é contado aqui.
-#  · `elenxo_isolado: sim` é auto-atestado no resíduo; o que o script exige é que a declaração exista.
+#  · `elenxo_isolado: true` é auto-atestado no resíduo; o que o script exige é que a declaração exista.
 #  · O que a sessão faz FORA deste script (deploy, publicação por wrapper, push) segue o
 #    pretooluse-moat-gate.sh e o pretooluse-merge-gate.sh; publicar por ops/publish-door.sh --push é (core-only)
 #    wrapper versionado e passa no hook — o AUTOMATE não o chama, e a parada de nó MOAT existe por isso.
@@ -123,7 +123,42 @@ MERGE_TIMEOUT = 36000                    # acima do envelope do merge-serial (ro
 MOAT_VOCAB = re.compile(r"(?i)(deploy|implant|produ[cç][aã]o|public|publish|release|marketplace|\bporta\b|"
                         r"\bcron|crontab|agend|schedul|\btimer\b|systemctl|systemd|rsync|\bvps\b|--push\b|\bpush\b|"
                         r"co-deliver|adotante|materializ)")
-OK_VERDICTS = ("APROVADO", "CORRIGIDO", "REPROVADO_E_CURADO", "SEM_ACHADOS")
+# Valor de campo de máquina é código, em inglês (decisão do maestro de 2026-11-08): `verdict` em inglês e `elenxo`/
+# `elenxo_isolado` em `true`. O AUTOMATE NÃO TEM ERA DE LEGADO, e por construção: `residue()` só aceita o resíduo que
+# o PR TRAZ no diff (SEM-RESIDUO senão), e o legado é, por definição, o arquivo histórico que o PR NÃO tocou (B1 do
+# refutador do #1541: chavear pelo caminho deixava uma branch com o slug de um legado reescrevê-lo com `sim`). Resíduo
+# que o PR toca é trabalho novo — logo aqui só vale a forma nova.
+OK_VERDICTS = ("APPROVED", "FIXED", "REJECTED_AND_FIXED", "NO_FINDINGS")
+
+
+def fm_raw(txt):
+    """O frontmatter lido COMO O BASH LÊ (`_field_of` do review-artifact-check.sh): a 1ª ocorrência da chave, o texto
+    cru sem aspas, e nenhuma coerção. O YAML 1.1 faria de `yes`/`on` um True e leria a ÚLTIMA ocorrência de uma
+    chave duplicada — o mesmo resíduo diria uma coisa à guarda e outra ao gate (L1 e L3 do refutador).
+    Devolve (campos, chaves duplicadas)."""
+    lines = (txt or "").split("\n")
+    if not lines or lines[0] != "---":
+        return {}, []
+    out, dups = {}, []
+    for ln in lines[1:]:
+        if ln == "---":
+            break
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):[ \t]*(.*)$", ln)
+        if not m:
+            continue
+        if m.group(1) in out:
+            dups.append(m.group(1))
+            continue
+        out[m.group(1)] = m.group(2).replace('"', "")
+    return out, dups
+
+
+def declares_true(raw):
+    return (raw or "").strip().lower() == "true"
+
+
+def verdict_ok(raw):
+    return (raw or "").strip().upper().replace("-", "_") in OK_VERDICTS
 
 
 class Halt(Exception):
@@ -713,7 +748,7 @@ def residue(pr):
         fm = None
     if not isinstance(fm, dict):
         raise Halt("RESIDUO-ILEGIVEL: %s sem frontmatter YAML" % rel)
-    return rel, fm
+    return rel, fm, out
 
 
 def _decisions(txt):
@@ -825,13 +860,16 @@ def gate(path, nid, want_merge, quiet=False):
     if req is None:
         raise Halt("SEM-RULESET: ops/github-ruleset-main.json ausente ou ilegível — não sei quais checks são exigidos (core-only)")
     runs = checks_verdict(pr, req)
-    rel, fm = residue(pr)
-    if str(fm.get("elenxo") or "").lower() != "sim":
-        raise Halt("ELENXO-AUSENTE: %s declara elenxo: %s" % (rel, fm.get("elenxo")))
-    if str(fm.get("elenxo_isolado") or "").lower() != "sim":
-        raise Halt("ELENXO-UMA-VOZ: %s não declara elenxo_isolado: sim — Elenxo do mesmo agente é uma voz só (objeção 3)" % rel)
-    if str(fm.get("verdict") or "") not in OK_VERDICTS:
-        raise Halt("ELENXO-REPROVADO: %s tem verdict %s" % (rel, fm.get("verdict")))
+    rel, fm, rtxt = residue(pr)
+    raw, dups = fm_raw(rtxt)
+    if dups:
+        raise Halt("RESIDUO-CHAVE-DUPLICADA: %s repete %s no frontmatter — a guarda lê a 1ª ocorrência e o YAML a última" % (rel, ", ".join(sorted(set(dups)))))
+    if not declares_true(raw.get("elenxo")):
+        raise Halt("ELENXO-AUSENTE: %s declara elenxo: %s" % (rel, raw.get("elenxo")))
+    if not declares_true(raw.get("elenxo_isolado")):
+        raise Halt("ELENXO-UMA-VOZ: %s não declara elenxo_isolado: true — Elenxo do mesmo agente é uma voz só (objeção 3)" % rel)
+    if not verdict_ok(raw.get("verdict")):
+        raise Halt("ELENXO-REPROVADO: %s tem verdict %s" % (rel, raw.get("verdict")))
     if str(fm.get("reviewed_diff_sha256") or "pendente").lower() in ("pendente", ""):
         raise Halt("RESIDUO-PENDENTE: %s ainda tem reviewed_diff_sha256 pendente — o pr-finalize não fechou o PR" % rel)
     if not want_merge:
@@ -883,7 +921,7 @@ def cmd_status():
     req = required_checks()
     say("- checks exigidos pelo ruleset: %s" % (", ".join(req) if req else "ILEGÍVEL — gate recusa o merge"))
     moat = os.path.isfile(os.path.join(ROOT, "ops/moat-targets.tsv"))  # (core-only)
-    say("- veto do MOAT por alvo (pretooluse-moat-gate.sh): %s" % ("armado" if moat else "DESARMADO (sem ops/moat-targets.tsv) — MOAT segue prosa aqui"))  # (core-only)
+    say("- veto do MOAT por alvo (pretooluse-moat-gate.sh): %s" % ("armado" if moat else "MODO DERIVADO (sem ops/moat-targets.tsv): só o relógio veta e a publicação avisa; deploy e repo alheio seguem prosa aqui"))  # (core-only)
     # pré-filtro por texto (superconjunto: a chave citada num label também casa), e o veredito por YAML.
     # Ler os ~150 grafos por PyYAML custava 12 s na carga do comando; o filtro deixa só os candidatos.
     rc, out, _ = run(["git", "grep", "-l", "-E", "^[[:space:]]+x_drive_(checkpoint|pass)[[:space:]]*:", "--", "*.kg.yaml"])

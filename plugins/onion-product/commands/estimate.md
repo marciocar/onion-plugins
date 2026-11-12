@@ -252,6 +252,22 @@ SE critérios de aceite não claros:
    - Adicionar referência ao épico na descrição
 ```
 
+### Prazo: vem do medidor, não do agente
+
+Com os pontos gravados por `tm.sh estimate.points <ID> <n>`, a data sai de
+`python3 ${CLAUDE_PLUGIN_ROOT}/utils/task-manager/velocity-meter.py propose --issue <ID> --project <P>`. Saída rc 3 =
+**não há data proposta**, e `status` diz por quê: `insufficient_sample` (poucas issues), `no_points_signal` (pontos não
+ordenam a duração, erram muito, são piores que ignorá-los ou não passam na permutação), `calibration_not_measured` (backtest
+temporal da categoria com n<10), `miscalibrated` (cobertura abaixo de 0,7), `beyond_history` (esperou ou durou mais que o
+histórico; a issue não iniciada traz só `work_hours_if_started_now`, horas e não data) e `not_applicable` (concluída, cancelada
+ou mãe de filhas abertas) e `not_calibrated` (ato humano: nunca recebe faixa).
+
+Regra do maestro: **a data nasce no compromisso** (`common:prompts:commitment-date-doctrine`). Backlog e fila têm pontos
+e horas. Saída rc 4 = sem prazo calibrado, com `proposal` null: `calibrated_hours_only` e `provisional_work_hours_only` trazem só horas;
+`provisional_team_band` só aparece para issue já em desenvolvimento com pontos, com datas em `provisional.dates_not_calibrated` e o acerto
+do caminho em `measured_accuracy.served_path`. Quem fixar uma data usa `tm.sh due_date.set <ID> <data> --set-by "<quem>"`: o verbo registra
+quem fixou em comentário. Pontos dados depois da conclusão ficam em `docs/onion/retro-estimates.tsv`.
+
 ### Passo 6: Documentar Métricas (Opcional)
 
 ```markdown

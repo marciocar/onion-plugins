@@ -14,13 +14,16 @@
 # nunca impresso) — a mesma regra do env-check.sh. A chave vai só no cabeçalho Authorization.
 # Team: LINEAR_TEAM_ID (não-segredo) → --team <KEY|id> → prefixo do identificador → team do projeto →
 # único team do workspace. Nunca adivinha entre vários.
+import datetime
 import hashlib
+import http.client
 import json
 import mimetypes
 import os
 import re
 import stat
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -28,8 +31,15 @@ import urllib.request
 ENDPOINT = "https://api.linear.app/graphql"
 # Costura de teste da bancada: TM_LINEAR_ENDPOINT só é aceito em loopback (a chave nunca sai para outro host).
 _override = os.environ.get("TM_LINEAR_ENDPOINT", "")
+REQUEST_TIMEOUT = 30
+# Pausas antes de cada releitura: medido 2026-11-09, 3 de 40 leituras logo após a escrita ainda vieram com o valor velho.
+REREAD_PAUSES = (0, 0.5, 1.5, 3.0)
 if re.match(r"^http://127\.0\.0\.1:\d+/", _override):
     ENDPOINT = _override
+    if os.environ.get("TM_LINEAR_TIMEOUT", "").isdigit():  # só com o Linear falso em loopback
+        REQUEST_TIMEOUT = int(os.environ["TM_LINEAR_TIMEOUT"])
+    if os.environ.get("TM_LINEAR_NO_PAUSE"):  # bancada: sem espera entre releituras
+        REREAD_PAUSES = tuple(0 for _ in REREAD_PAUSES)
 # Arquivos ENVIADOS ao Linear (upload) moram neste host e exigem o header Authorization para baixar
 # (medido 2026-10-12: sem header → 401; com a chave crua ou com Bearer → 200). A chave só vai para cá.
 UPLOADS_BASE = "https://uploads.linear.app/"
@@ -42,10 +52,15 @@ CAPABILITIES = [
     "item.create",
     "item.read",
     "item.update",
+    "item.archive",
+    "item.list",
     "hierarchy.subtask_create",
     "hierarchy.subtask_list",
     "status.transition",
     "priority.set",
+    "estimate.points",
+    "estimate.points_read",
+    "due_date.set",
     "comment.add",
     "comment.list",
     "activity.list",
@@ -62,6 +77,7 @@ CAPABILITIES = [
 
 ISSUE_FIELDS = """
   id identifier title description url priority priorityLabel createdAt updatedAt
+  estimate startedAt completedAt canceledAt dueDate
   state { id name type }
   team { id key name }
   project { id name }
@@ -69,6 +85,10 @@ ISSUE_FIELDS = """
   assignee { id name }
   labels { nodes { id name } }
 """
+
+# Tipos de WorkflowState do Linear; valor fora disto volta rc 2 em vez de lista vazia que parece medição.
+STATE_TYPES = ("triage", "backlog", "unstarted", "started", "completed", "canceled")
+LIST_DEFAULT_LIMIT = 250
 
 ID_RE = re.compile(r"^[A-Z][A-Z0-9]*-\d+$")
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
@@ -119,13 +139,16 @@ def gql(query, variables=None):
         "User-Agent": "onion-tm/1",
     })
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
             payload = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:500]
         raise TmError(f"HTTP {e.code} do Linear: {detail}")
     except urllib.error.URLError as e:
         raise TmError(f"falha de rede falando com o Linear: {e.reason}")
+    except (TimeoutError, OSError, http.client.HTTPException) as e:
+        # timeout na leitura da resposta não vem embrulhado em URLError
+        raise TmError(f"falha de rede ou tempo esgotado falando com o Linear: {type(e).__name__}: {e}")
     # GraphQL devolve 200 com `errors` — isso é ERRO, nunca sucesso parcial silencioso
     if payload.get("errors"):
         msgs = "; ".join(str(err.get("message", err)) for err in payload["errors"])
@@ -388,7 +411,7 @@ def _subtree(issue_id, depth):
 
 def _parent_full(parent_id):
     """A mãe COMPLETA: objetivo (descrição inteira), estado, pontos, prioridade."""
-    data = gql(f"query IssueParent($id:String!){{ issue(id:$id){{ {ISSUE_FIELDS} estimate }} }}", {"id": parent_id})
+    data = gql(f"query IssueParent($id:String!){{ issue(id:$id){{ {ISSUE_FIELDS} }} }}", {"id": parent_id})
     if not data.get("issue"):
         raise TmError(f"mãe não encontrada: {parent_id}")
     return data["issue"]
@@ -729,6 +752,107 @@ def v_item_update(args):
     return _issue_update(_issue(pos[0])["id"], patch)
 
 
+def _archive_view(ident):
+    """Só o que o arquivamento precisa ler. `issue(id:)` é a mesma consulta do item.read."""
+    data = gql("query IssueArchiveState($id:String!){ issue(id:$id){ id identifier title archivedAt state { name type } } }", {"id": ident})
+    if not data.get("issue"):
+        raise TmError(f"issue não encontrada: {ident}")
+    return data["issue"]
+
+
+def v_item_archive(args):
+    usage = "item.archive <ID> [--dry-run]"
+    dry_run = "--dry-run" in args
+    pos = [a for a in args if a != "--dry-run"]
+    if any(a.startswith("--") for a in pos) or len(pos) != 1:
+        raise TmError(f"uso: tm.sh {usage}", 2)
+    if not (ID_RE.match(pos[0]) or UUID_RE.match(pos[0])):
+        raise TmError(f"id de issue inválido: '{pos[0]}' (forma ABC-123 ou UUID)", 2)
+    iss = _archive_view(pos[0])
+    base = {"id": iss["id"], "identifier": iss["identifier"], "title": iss["title"], "state": iss.get("state")}
+    # Idempotente: arquivar de novo não chama a mutação. Quem repete um lote interrompido não vê erro nem duplica escrita.
+    if iss.get("archivedAt"):
+        return {**base, "archived": True, "already_archived": True, "archivedAt": iss["archivedAt"]}
+    if dry_run:
+        return {**base, "archived": False, "already_archived": False, "would_archive": True}
+    data = gql("mutation IssueArchive($id:String!){ issueArchive(id:$id){ success } }", {"id": iss["id"]})
+    if not (data.get("issueArchive") or {}).get("success"):
+        raise TmError(f"issueArchive não confirmou o arquivamento de {iss['identifier']} (success=false)")
+    # `success` é a declaração do provedor; a prova é reler o carimbo.
+    try:
+        after = _archive_view(iss["id"])
+    except TmError as e:
+        print(f"tm (linear): {iss['identifier']} arquivada (success=true), mas a releitura falhou: {e}", file=sys.stderr)
+        return {**base, "archived": True, "already_archived": False, "archivedAt": None, "verified": False}
+    if not after.get("archivedAt"):
+        raise TmError(f"issueArchive disse success=true e a releitura de {iss['identifier']} segue sem archivedAt")
+    return {**base, "archived": True, "already_archived": False, "archivedAt": after["archivedAt"], "verified": True}
+
+
+def _state_types(value):
+    types = [t.strip() for t in value.split(",") if t.strip()]
+    bad = [t for t in types if t not in STATE_TYPES]
+    if not types or bad:
+        raise TmError(f"--state-type inválido: '{value}' (aceitos, separados por vírgula: {', '.join(STATE_TYPES)})", 2)
+    return types
+
+
+def _non_negative_int(flag, value):
+    if not re.match(r"^\d+$", value):
+        raise TmError(f"{flag} exige inteiro não negativo: '{value}'", 2)
+    return int(value)
+
+
+def v_item_list(args):
+    include_archived = "--include-archived" in args
+    with_description = "--with-description" in args
+    rest = [a for a in args if a not in ("--include-archived", "--with-description")]
+    o, pos = _opts(rest, ["state", "state-type", "older-than-days", "team", "project", "limit"])
+    if pos:
+        raise TmError("uso: tm.sh item.list [--state <nome>] [--state-type <tipo,...>] [--older-than-days N] "
+                      "[--team KEY] [--project <nome|id>] [--include-archived] [--with-description] [--limit N]", 2)
+    limit = _non_negative_int("--limit", o.get("limit", str(LIST_DEFAULT_LIMIT)))
+    if limit < 1:
+        raise TmError("--limit exige ao menos 1", 2)
+    flt, state = {}, {}
+    if "state-type" in o:
+        state["type"] = {"in": _state_types(o["state-type"])}
+    if o.get("state"):
+        state["name"] = {"eqIgnoreCase": o["state"]}
+    if state:
+        flt["state"] = state
+    cutoff = None
+    if "older-than-days" in o:
+        days = _non_negative_int("--older-than-days", o["older-than-days"])
+        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        flt["updatedAt"] = {"lt": cutoff}
+    if o.get("team"):
+        flt["team"] = {"id": {"eq": _team_id(o["team"])}}
+    if o.get("project"):
+        flt["project"] = {"id": {"eq": _project(o["project"])["id"]}}
+    nodes, cursor, truncated = [], None, False
+    # A descrição só vem por flag: pesa no payload e o medidor de velocidade não a usa.
+    description_field = "description " if with_description else ""
+    while True:
+        data = gql("query IssueList($f:IssueFilter,$n:Int!,$after:String,$arch:Boolean){ issues(filter:$f, first:$n, after:$after, includeArchived:$arch){ "
+                   "nodes { id identifier title " + description_field + "url priority estimate createdAt updatedAt startedAt completedAt canceledAt dueDate archivedAt "
+                   "state { name type } team { key } project { name } parent { identifier } labels { nodes { name } } } "
+                   "pageInfo { hasNextPage endCursor } } }",
+                   {"f": flt, "n": min(PAGE_SIZE, limit - len(nodes)), "after": cursor, "arch": include_archived})
+        conn = data["issues"]
+        nodes.extend(conn["nodes"])
+        info = conn.get("pageInfo") or {}
+        if not info.get("hasNextPage"):
+            break
+        if len(nodes) >= limit or not info.get("endCursor"):
+            truncated = True
+            print(f"tm (linear): item.list truncado em {len(nodes)} issue(s) — declarado no retorno; suba --limit", file=sys.stderr)
+            break
+        cursor = info["endCursor"]
+    return {"count": len(nodes), "truncated": truncated, "include_archived": include_archived,
+            "updated_before": cutoff, "filter": flt, "issues": nodes}
+
+
 def v_subtask_create(args):
     o, pos = _opts(args, ["title", "description", "priority", "state"])
     _need(pos, 1, "hierarchy.subtask_create <ID-PAI> --title <t> [--description <d>]")
@@ -754,6 +878,122 @@ def v_priority_set(args):
     _need(args, 2, "priority.set <ID> <0-4|none|urgent|high|normal|low>")
     iss = _issue(args[0])
     return _issue_update(iss["id"], {"priority": _priority(args[1])})
+
+
+# Escalas do Linear por `Team.issueEstimationType`; a estendida soma as duas pontas. Só `fibonacci` foi medida ao vivo
+# (2026-11-08, linear.md); as outras vêm da documentação do produto e declaram isso pelo erro de fora da escala.
+ESTIMATE_SCALES = {
+    "fibonacci": ([1, 2, 3, 5, 8], [13, 21]),
+    "tShirt": ([1, 2, 3, 5, 8], [13, 21]),
+    "exponential": ([1, 2, 4, 8, 16], [32, 64]),
+    "linear": ([1, 2, 3, 4, 5], [6, 7]),
+}
+
+
+def _team_scale(team_id):
+    """Valores aceitos pelo time. Time com estimativa desligada é erro de configuração, nunca escrita silenciosa."""
+    data = gql("query TeamScale($id:String!){ team(id:$id){ issueEstimationType issueEstimationExtended issueEstimationAllowZero } }", {"id": team_id})
+    team = data.get("team")
+    if not team:
+        raise TmError(f"team não encontrado: {team_id}")
+    kind = team.get("issueEstimationType")
+    if kind == "notUsed" or kind is None:
+        raise TmError("o time está com estimativa desligada (issueEstimationType=notUsed): ligue nas configurações do time", 2)
+    if kind not in ESTIMATE_SCALES:
+        raise TmError(f"escala de estimativa desconhecida para este adapter: '{kind}'", 2)
+    base, extended = ESTIMATE_SCALES[kind]
+    values = ([0] if team.get("issueEstimationAllowZero") else []) + base + (extended if team.get("issueEstimationExtended") else [])
+    return {"type": kind, "extended": bool(team.get("issueEstimationExtended")), "allow_zero": bool(team.get("issueEstimationAllowZero")), "values": values}
+
+
+def _verified_update(iss, field, value):
+    """`success` e o retorno da mutação são a declaração do provedor; a prova é uma leitura separada depois da escrita."""
+    _issue_update(iss["id"], {field: value})
+    after = iss
+    for pause in REREAD_PAUSES:
+        time.sleep(pause)
+        try:
+            after = _issue(iss["identifier"])
+        except TmError as e:
+            raise TmError(f"{iss['identifier']}: escrita enviada e a releitura falhou ({e}); confira antes de repetir")
+        if after.get(field) == value:
+            return after
+    raise TmError(f"issueUpdate disse success e a releitura de {iss['identifier']} mostra {field}={after.get(field)}, pedido {value}")
+
+
+def _single_target(args, usage):
+    """<ID> <valor> ou <ID> --clear. Token extra ou flag desconhecida é erro de uso antes de qualquer rede."""
+    if len(args) != 2 or (args[1].startswith("-") and args[1] != "--clear") or args[0].startswith("-"):
+        raise TmError(f"uso: tm.sh {usage}", 2)
+    if not (ID_RE.match(args[0]) or UUID_RE.match(args[0])):
+        raise TmError(f"id de issue inválido: '{args[0]}' (forma ABC-123 ou UUID)", 2)
+    return args[0], (None if args[1] == "--clear" else args[1])
+
+
+def v_estimate_points(args):
+    usage = "estimate.points <ID> <pontos>|--clear"
+    ident, raw = _single_target(args, usage)
+    if raw is not None and not re.fullmatch(r"[0-9]+", raw):
+        raise TmError(f"pontos têm de ser inteiro não negativo: '{raw}'", 2)
+    points = None if raw is None else int(raw)
+    iss = _issue(ident)
+    scale = _team_scale(iss["team"]["id"])
+    if points is not None and points not in scale["values"]:
+        raise TmError(f"{points} está fora da escala do time ({scale['type']}, aceitos: {scale['values']})", 2)
+    updated = _verified_update(iss, "estimate", points)
+    return {"issue": updated["identifier"], "estimate": updated["estimate"], "previous": iss.get("estimate"), "scale": scale}
+
+
+def v_estimate_points_read(args):
+    usage = "estimate.points_read <ID>"
+    if len(args) != 1 or args[0].startswith("-"):
+        raise TmError(f"uso: tm.sh {usage}", 2)
+    iss = _issue(args[0])
+    return {"issue": iss["identifier"], "estimate": iss.get("estimate"), "scale": _team_scale(iss["team"]["id"])}
+
+
+def _calendar_date(value):
+    """Só YYYY-MM-DD de calendário real: é o TimelessDate do Linear, e string fora disso não pode virar prazo."""
+    try:
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+            raise ValueError
+        datetime.date.fromisoformat(value)
+    except ValueError:
+        raise TmError(f"data inválida: '{value}' (forma YYYY-MM-DD, data de calendário real)", 2)
+    return value
+
+
+def _named_flag(args, flag):
+    """Tira `flag valor` de args. Devolve (valor ou None, resto). Valor em branco é erro de uso antes de qualquer rede."""
+    if flag not in args:
+        return None, args
+    at = args.index(flag)
+    if at + 1 >= len(args) or not args[at + 1].strip():
+        raise TmError(f"{flag} exige valor", 2)
+    return args[at + 1], args[:at] + args[at + 2:]
+
+
+def v_due_date_set(args):
+    # Regra do maestro (2026-11-09): data fixada à mão registra quem fixou. A marca vai em comentário porque a API só guarda o dono da chave.
+    usage = 'due_date.set <ID> <YYYY-MM-DD>|--clear --set-by "<quem>" [--note "texto"]'
+    who, args = _named_flag(args, "--set-by")
+    note, args = _named_flag(args, "--note")
+    if who is None:
+        raise TmError(f"uso: tm.sh {usage} (--set-by é obrigatório)", 2)
+    ident, raw = _single_target(args, usage)
+    due = None if raw is None else _calendar_date(raw)
+    iss = _issue(ident)
+    updated = _verified_update(iss, "dueDate", due)
+    body = f"Prazo {due} fixado à mão por {who}." if due else f"Prazo removido por {who}."
+    if note:
+        body += f" {note}"
+    try:
+        data = gql("mutation($in:CommentCreateInput!){ commentCreate(input:$in){ success comment { id } } }", {"in": {"issueId": iss["id"], "body": body}})
+    except TmError as e:
+        raise TmError(f"{iss['identifier']}: o prazo foi gravado, e o registro de quem fixou NÃO ({e}): comente antes de seguir")
+    if not (data.get("commentCreate") or {}).get("success"):
+        raise TmError(f"{iss['identifier']}: o prazo foi gravado, e o registro de quem fixou NÃO: comente antes de seguir")
+    return {"issue": updated["identifier"], "dueDate": updated["dueDate"], "previous": iss.get("dueDate"), "set_by": who, "comment": data["commentCreate"]["comment"]["id"]}
 
 
 def _comment_opts(args):
@@ -865,10 +1105,15 @@ VERBS = {
     "item.create": v_item_create,
     "item.read": v_item_read,
     "item.update": v_item_update,
+    "item.archive": v_item_archive,
+    "item.list": v_item_list,
     "hierarchy.subtask_create": v_subtask_create,
     "hierarchy.subtask_list": v_subtask_list,
     "status.transition": v_status_transition,
     "priority.set": v_priority_set,
+    "estimate.points": v_estimate_points,
+    "estimate.points_read": v_estimate_points_read,
+    "due_date.set": v_due_date_set,
     "comment.add": v_comment_add,
     "comment.list": v_comment_list,
     "activity.list": v_activity_list,

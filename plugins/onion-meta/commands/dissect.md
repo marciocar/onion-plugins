@@ -51,7 +51,9 @@ vazio): conserte o ambiente, nunca siga com censo vazio.
 | **N4** absorção | o plano: artefato · costura SDAAL · **guarda** que cobra · **caso de bancada** que reprova sem a mudança | caro |
 
 **Nível reprovado não sobe.** É o corte de custo: varrer 30 ferramentas no N0 é barato; levar 30
-ao N4 é insano.
+ao N4 é insano. A escada é a do **veredito de uso**. O **registro de ideias** (§1c da doutrina) é
+obrigatório em toda dissecação, e o reprovado não o encerra: o eliminatório barra o código, nunca a
+colheita.
 
 ## Uso
 
@@ -104,7 +106,8 @@ não gasta o plano de absorção em algo que ainda vai ser rejeitado).
    estrito, e a ordem é conferida no git:
    `bash ${CLAUDE_PLUGIN_ROOT}/validation/dissect-object-check.sh <grafo> --stage plan` (rc 0). Família que não está no
    registro **não se inventa no meio**: entra por PR no core antes do N0. Objeto que é ferramenta de
-   terceiro é a família `ferramenta`, e a escada é a de sempre.
+   terceiro é a família `ferramenta`, e a escada é a de sempre. Os eliminatórios do plano se escrevem
+   como barreira de **uso**: o que eles encerram é o veredito, nunca o registro de ideias (passo 3b).
 1. **MEDIR** — o censo acima. Ferramenta com nível **fresco** entra no nível **seguinte**; não
    repague nível. Dissecação **VENCIDA** é re-medida, nunca citada como de hoje.
 2. **ENQUADRAR** — para cada ferramenta, o nível de entrada (do censo) e o nível-alvo (`--level`).
@@ -116,11 +119,23 @@ não gasta o plano de absorção em algo que ainda vai ser rejeitado).
    implementação**. Até existir, a escada é conduzida pela sessão (direto, nível a nível, sem
    subir o reprovado), e o grafo **declara** que foi assim. Sessão que já é subagente não
    orquestra: disseca direto.
+3b. **REGISTRO DE IDEIAS (sempre, inclusive quando o eliminatório encerra o uso)** — para cada objeto
+   (e para cada peça, com `x_dissect_pieces`), registre as **funcionalidades**, as **estratégias** e as
+   **decisões de desenho** como nós `x_dissect_idea` (§1c da doutrina): `kind`, o comparativo à régua
+   (`onion: temos | nao-temos | diferente` + `why`, o que a régua faz e por quê) e a `source`
+   (`arquivo:linha`, com pino num repo alheio, ou a URL do doc). Ideia candidata leva `candidate: true`,
+   `value` de 1 a 5 e `value_why`. Toda ideia declara o `destination` que a consome (`<repo>:<caminho>#<ID>`,
+   issue `SAC-123` ou URL) ou `nenhum` com `destination_why`: ideia citada no rótulo e nunca entregue é o
+   padrão que o censo de 2026-11-07 mediu. Tipo sem ideia exige `x_dissect_ideas_gap` com a razão, e objeto com
+   zero ideias reprova sempre. Projeto arquivado se lê no último commit com pino: o conceito se colhe e
+   se reescreve, o código não entra.
 4. **VEREDITO** — um dos **vereditos da família** (o registro os lista; `ator` não absorve, `categoria` e
    `ideia` perseguem com `x_dissect_pursue: estudo | projeto-novo`), com razão escrita. Declare
    `meta.x_who_pays` e `meta.x_unverified`. A superação de um negativo é buscada **também na web**
    (`x_dissect_overcoming_search` com ao menos uma `where: web` quando ela é `nenhuma`), e o parque leva
    `x_dissect_trigger` (consulta `kg_query` em lista branca que lê o que persiste, abaixo de `min_count`). `parquear` **exige gatilho nomeado**.
+   Parque que nomeia a candidata que o superaria a declara como ponteiro, `x_dissect_candidate: [<repo>:]<caminho>.kg.yaml#<ID>`:
+   candidata rejeitada depois deixa o gatilho órfão, e o item 10 do checador o acusa.
    `rejeitar` e `parquear` são **negativos** e exigem, no nó do veredito, `x_dissect_criterion:` (o
    comando que checa a reprovação) e `x_dissect_overcoming:` (o id do nó deste grafo com o que SUPERA,
    com aresta para a decisão, ou `nenhuma` + `x_dissect_overcoming_measure:` com o que se procurou e
@@ -157,7 +172,9 @@ não gasta o plano de absorção em algo que ainda vai ser rejeitado).
 6. **GATE** — `bash ${CLAUDE_PLUGIN_ROOT}/validation/dissect-object-check.sh <grafo>` rc 0 (estudo por família;
    rc 3 é "não mediu", nunca aprovação) · `lint-artifacts.sh` 0 HARD · famílias `run_dissect_selftests` e
    `run_dissect_object_selftests` verdes · resíduo da
-   REGRA 56 (PR aberto carrega RESÍDUO da passada adversarial) no PR.
+   REGRA 56 (PR aberto carrega RESÍDUO da passada adversarial) no PR, com `findings_blocking`. O Elenxo da
+   pesquisa já devolve `triage` (bloqueia|limite) em toda objeção sobrevivente; o refutador do N3, e toda revisão
+   separada que a dissecação encomendar, leva no brief a régua de `review-triage.md`.
 
 ## O que este comando NÃO faz
 
